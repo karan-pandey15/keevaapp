@@ -9,10 +9,14 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { sendOtp } from '../api';
 
 export default function Screen1({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handlePhoneNumberChange = (text) => {
     const cleaned = text.replace(/[^0-9]/g, '');
@@ -22,6 +26,22 @@ export default function Screen1({ navigation }) {
   };
 
   const isButtonEnabled = phoneNumber.length === 10;
+
+  const handleContinue = async () => {
+    if (!isButtonEnabled) return;
+    
+    setIsLoading(true);
+    try {
+      const fullPhoneNumber = `91${phoneNumber}`;
+      const response = await sendOtp(fullPhoneNumber);
+      // You might want to check response.ok or similar here depending on API
+      navigation.navigate('Screen2', { phoneNumber: fullPhoneNumber });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -67,13 +87,17 @@ export default function Screen1({ navigation }) {
           <TouchableOpacity
             style={[
               styles.continueButton,
-              !isButtonEnabled && styles.continueButtonDisabled,
+              (!isButtonEnabled || isLoading) && styles.continueButtonDisabled,
             ]}
-            disabled={!isButtonEnabled}
+            disabled={!isButtonEnabled || isLoading}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('Screen2')}
+            onPress={handleContinue}
           >
-            <Text style={styles.continueButtonText}>Continue</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.continueButtonText}>Continue</Text>
+            )}
           </TouchableOpacity>
 
           {/* FIXED FOOTER – STAYS AT BOTTOM ALWAYS */}
@@ -104,7 +128,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     paddingVertical: 15,
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: 20,
   },
   skipText: {
     color: '#fff',

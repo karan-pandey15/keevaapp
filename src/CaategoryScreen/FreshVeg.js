@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,600 +8,229 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/Ionicons';
+import CartButton from '../helperComponent/CartButton';
+import { addItem, incrementQuantity, decrementQuantity } from '../redux/cartSlice';
 
 const SIDEBAR_WIDTH = 100;
 const PRODUCTS_GRID_PADDING = 8;
 const CARD_WIDTH_PERCENT = '49%';
 
+const API_URL = 'https://api.keeva.in/products/category/Vegetables';
+
 const FreshVeg = () => {
+  // ✅ ALL HOOKS AT TOP (VERY IMPORTANT)
   const navigation = useNavigation();
-  const [selectedCategory, setSelectedCategory] = useState(1);
-  const [cart, setCart] = useState({});
+  const dispatch = useDispatch();
+  const cartItems = useSelector((state) => state.cart.items);
+
+  const [loading, setLoading] = useState(true);
+  const [subCategories, setSubCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [selectedSubCategory, setSelectedSubCategory] = useState(null);
 
   const vegetablePlaceholder = require('../images/vegetable.png');
 
-  const categories = [
-    { id: 1, name: 'Fresh Veg', image: vegetablePlaceholder },
-    { id: 2, name: 'Green Veg', image: vegetablePlaceholder },
-    { id: 3, name: 'Fresh Vege', image: vegetablePlaceholder },
-    { id: 4, name: 'Healthy Veg', image: vegetablePlaceholder },
-    { id: 5, name: 'Season Veg', image: vegetablePlaceholder },
-    { id: 6, name: 'Batters & Mixes', image: vegetablePlaceholder }, 
-  ];
+  // 🔹 API CALL
+  useEffect(() => {
+    let mounted = true;
 
-const categoryProducts = {
-  1: [ // Leafy Vegetables
-    {
-      id: 1,
-      name: 'Fresh Spinach Leaves',
-      price: 20,
-      originalPrice: 25,
-      quantity: '250 g',
-      rating: 4.7,
-      reviews: '1.1K',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 2,
-      name: 'Coriander Bunch',
-      price: 15,
-      originalPrice: null,
-      quantity: '1 bunch',
-      rating: 4.6,
-      reviews: '900',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 3,
-      name: 'Fresh Mint Leaves',
-      price: 12,
-      originalPrice: null,
-      quantity: '1 bunch',
-      rating: 4.5,
-      reviews: '540',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 4,
-      name: 'Fenugreek (Methi) Leaves',
-      price: 18,
-      originalPrice: null,
-      quantity: '1 bunch',
-      rating: 4.5,
-      reviews: '230',
-      image: vegetablePlaceholder,
-      available: true,
-      badge: { pieces: '1', text: 'Bunch', brand: 'Fresh' },
-    },
-    {
-      id: 5,
-      name: 'Cabbage (Green)',
-      price: 35,
-      originalPrice: 40,
-      quantity: '1 pc (600–800 g)',
-      rating: 4.8,
-      reviews: '800',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 6,
-      name: 'Lettuce Iceberg',
-      price: 60,
-      originalPrice: 70,
-      quantity: '1 pc',
-      rating: 4.6,
-      reviews: '400',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
 
-  2: [ // Root Vegetables
-    {
-      id: 11,
-      name: 'Fresh Carrots',
-      price: 30,
-      originalPrice: 35,
-      quantity: '500 g',
-      rating: 4.3,
-      reviews: '450',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 12,
-      name: 'Beetroot',
-      price: 28,
-      originalPrice: null,
-      quantity: '500 g',
-      rating: 4.5,
-      reviews: '300',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 13,
-      name: 'Radish (Mooli)',
-      price: 22,
-      originalPrice: 25,
-      quantity: '500 g',
-      rating: 4.4,
-      reviews: '210',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 14,
-      name: 'Sweet Potato (Shakarkandi)',
-      price: 40,
-      originalPrice: null,
-      quantity: '500 g',
-      rating: 4.2,
-      reviews: '95',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
+        if (mounted && json.ok) {
+          const list = json.products;
 
-  3: [ // Gourds & Melons
-    {
-      id: 21,
-      name: 'Bottle Gourd (Lauki)',
-      price: 30,
-      originalPrice: null,
-      quantity: '1 pc (700–900 g)',
-      rating: 4.8,
-      reviews: '300',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 22,
-      name: 'Ridge Gourd (Tori)',
-      price: 35,
-      originalPrice: 40,
-      quantity: '500 g',
-      rating: 4.6,
-      reviews: '250',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 23,
-      name: 'Bitter Gourd (Karela)',
-      price: 45,
-      originalPrice: 50,
-      quantity: '500 g',
-      rating: 4.7,
-      reviews: '180',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 24,
-      name: 'Cucumber (Kheera)',
-      price: 28,
-      originalPrice: null,
-      quantity: '500 g',
-      rating: 4.5,
-      reviews: '220',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
+          const subs = [...new Set(list.map(p => p.sub_category))];
 
-  4: [ // Allium Family (Onion, Garlic)
-    {
-      id: 31,
-      name: 'Onion (Red)',
-      price: 25,
-      originalPrice: null,
-      quantity: '1 kg',
-      rating: 4.6,
-      reviews: '900',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 32,
-      name: 'Garlic (Desi)',
-      price: 80,
-      originalPrice: 90,
-      quantity: '250 g',
-      rating: 4.5,
-      reviews: '700',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 33,
-      name: 'Spring Onion Bunch',
-      price: 20,
-      originalPrice: null,
-      quantity: '1 bunch',
-      rating: 4.7,
-      reviews: '280',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 34,
-      name: 'Ginger (Adrak)',
-      price: 70,
-      originalPrice: 80,
-      quantity: '500 g',
-      rating: 4.8,
-      reviews: '500',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
-
-  5: [ // Peppers & Chilies
-    {
-      id: 41,
-      name: 'Green Capsicum',
-      price: 60,
-      originalPrice: 70,
-      quantity: '500 g',
-      rating: 4.7,
-      reviews: '600',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 42,
-      name: 'Red Bell Pepper',
-      price: 90,
-      originalPrice: null,
-      quantity: '1 pc',
-      rating: 4.6,
-      reviews: '350',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 43,
-      name: 'Yellow Bell Pepper',
-      price: 90,
-      originalPrice: 110,
-      quantity: '1 pc',
-      rating: 4.5,
-      reviews: '420',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 44,
-      name: 'Green Chilies (Hari Mirch)',
-      price: 20,
-      originalPrice: null,
-      quantity: '100 g',
-      rating: 4.4,
-      reviews: '290',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
-
-  6: [ // Potatoes & Tomatoes
-    {
-      id: 51,
-      name: 'Fresh Potatoes',
-      price: 25,
-      originalPrice: 30,
-      quantity: '1 kg',
-      rating: 4.4,
-      reviews: '2.3K',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 52,
-      name: 'Tomatoes (Hybrid)',
-      price: 35,
-      originalPrice: null,
-      quantity: '1 kg',
-      rating: 4.3,
-      reviews: '1.1K',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 53,
-      name: 'Cherry Tomatoes Box',
-      price: 80,
-      originalPrice: 90,
-      quantity: '200 g',
-      rating: 4.5,
-      reviews: '300',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 54,
-      name: 'Sweet Potato (Shakarkandi)',
-      price: 50,
-      originalPrice: 55,
-      quantity: '500 g',
-      rating: 4.2,
-      reviews: '140',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
-
-  7: [ // Beans & Okra
-    {
-      id: 61,
-      name: 'Lady Finger (Bhindi)',
-      price: 50,
-      originalPrice: null,
-      quantity: '500 g',
-      rating: 4.6,
-      reviews: '850',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 62,
-      name: 'French Beans',
-      price: 70,
-      originalPrice: 75,
-      quantity: '500 g',
-      rating: 4.7,
-      reviews: '540',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 63,
-      name: 'Cluster Beans (Gawar)',
-      price: 45,
-      originalPrice: null,
-      quantity: '500 g',
-      rating: 4.5,
-      reviews: '280',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 64,
-      name: 'Green Peas (Matar)',
-      price: 80,
-      originalPrice: 90,
-      quantity: '500 g',
-      rating: 4.6,
-      reviews: '380',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
-
-  8: [ // Exotic Vegetables
-    {
-      id: 71,
-      name: 'Broccoli Fresh',
-      price: 120,
-      originalPrice: null,
-      quantity: '1 pc (300–400 g)',
-      rating: 4.5,
-      reviews: '420',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 72,
-      name: 'Zucchini (Green)',
-      price: 90,
-      originalPrice: 110,
-      quantity: '500 g',
-      rating: 4.6,
-      reviews: '380',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 73,
-      name: 'Baby Corn Pack',
-      price: 70,
-      originalPrice: null,
-      quantity: '200 g',
-      rating: 4.7,
-      reviews: '520',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-    {
-      id: 74,
-      name: 'Mushrooms Button',
-      price: 60,
-      originalPrice: 75,
-      quantity: '200 g',
-      rating: 4.4,
-      reviews: '290',
-      image: vegetablePlaceholder,
-      available: true,
-    },
-  ],
-};
-
-
-  const currentProducts = categoryProducts[selectedCategory] || [];
-  const selectedCategoryName = categories.find(c => c.id === selectedCategory)?.name || 'Dairy, Bread & Eggs';
-
-  const handleCategoryChange = (categoryId) => {
-    setSelectedCategory(categoryId);
-    setCart({});
-  };
-
-  const addToCart = (productId) => {
-    setCart((prev) => ({
-      ...prev,
-      [productId]: 1,
-    }));
-  };
-
-  const increaseQuantity = (productId) => {
-    setCart((prev) => ({
-      ...prev,
-      [productId]: (prev[productId] || 0) + 1,
-    }));
-  };
-
-  const decreaseQuantity = (productId) => {
-    setCart((prev) => {
-      const currentQty = prev[productId] || 0;
-      if (currentQty <= 1) {
-        const newCart = { ...prev };
-        delete newCart[productId];
-        return newCart;
+          setSubCategories(subs);
+          setSelectedSubCategory(subs[0]);
+          setProducts(list);
+        }
+      } catch (e) {
+        console.log('API Error:', e);
+      } finally {
+        mounted && setLoading(false);
       }
-      return {
-        ...prev,
-        [productId]: currentQty - 1,
-      };
-    });
+    };
+
+    fetchProducts();
+    return () => (mounted = false);
+  }, []);
+
+  const filteredProducts = selectedSubCategory
+    ? products.filter(p => p.sub_category === selectedSubCategory)
+    : [];
+
+  const getItemQuantity = (productId) => {
+    const item = cartItems.find(i => i.id === productId);
+    return item ? item.quantity : 0;
+  };
+
+  const handleAddToCart = (product) => {
+    dispatch(addItem({
+      id: product._id,
+      name: product.name,
+      price: product.price.selling_price,
+      originalPrice: product.price.mrp,
+      image: { uri: product.images?.[0]?.url },
+      quantity: 1,
+    }));
+  };
+
+  const handleIncreaseQty = (productId) => {
+    dispatch(incrementQuantity(productId));
+  };
+
+  const handleDecreaseQty = (productId) => {
+    dispatch(decrementQuantity(productId));
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
+      {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Icon name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{selectedCategoryName}</Text>
+          <Text style={styles.headerTitle}>Fresh Vegetables</Text>
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('SearchScreen')}>
-            <Icon name="search" size={24} color="#000" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity>
+          <Icon name="search" size={24} color="#000" />
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.sidebar} showsVerticalScrollIndicator={false}>
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.categoryItem,
-                selectedCategory === category.id && styles.categoryItemActive,
-              ]}
-              onPress={() => handleCategoryChange(category.id)}
-            >
-              <View style={[
-                styles.categoryIconWrapper,
-                selectedCategory === category.id && styles.categoryIconWrapperActive,
-              ]}>
-                <View style={styles.categoryImagePlaceholder}>
-                  <Image source={category.image} style={styles.categoryIcon} />
-                </View>
-              </View>
-              <Text style={styles.categoryName} numberOfLines={2}>
-                {category.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* LOADER (NO EARLY RETURN ❗) */}
+      {loading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color="#9333ea" />
         </View>
+      ) : (
+        <View style={styles.content}>
+          {/* SIDEBAR */}
+          <View style={styles.sidebar} showsVerticalScrollIndicator={false}>
+            {subCategories.map((sub, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[
+                  styles.categoryItem,
+                  selectedSubCategory === sub && styles.categoryItemActive,
+                ]}
+                onPress={() => {
+                  setSelectedSubCategory(sub);
+                }}
+              >
+                <View style={styles.categoryImagePlaceholder}>
+                  <Image source={vegetablePlaceholder} style={styles.categoryIcon} />
+                </View>
+                <Text style={styles.categoryName} numberOfLines={2}>
+                  {sub}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <ScrollView
-          style={styles.productsContainer}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.productsScrollContent}
-        >
-          <View style={styles.productsGrid}>
-            {currentProducts.map((product) => {
-              const quantity = cart[product.id] || 0;
-              const isInCart = quantity > 0;
-              const showGreenTag = !!product.originalPrice;
+          {/* PRODUCTS */}
+          <ScrollView
+            style={styles.productsContainer}
+            contentContainerStyle={styles.productsScrollContent}
+          >
+            <View style={styles.productsGrid}>
+              {filteredProducts.map(item => {
+                const qty = getItemQuantity(item._id);
+                const showDiscount =
+                  item.price.mrp > item.price.selling_price;
 
-              return (
-                <View 
-                  key={product.id} 
-                  style={styles.productCard}
-                >
-                  {!product.available && (
-                    <View style={styles.soldOutLabelContainer}>
-                      <Text style={styles.soldOutLabel}>Sold out</Text>
+                return (
+                  <TouchableOpacity
+                    key={item._id}
+                    style={styles.productCard}
+                    onPress={() =>
+                      navigation.navigate('ProductDetailPage', { product: item })
+                    }
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.productImageContainer}>
+                      <Image
+                        source={{ uri: item.images?.[0]?.url }}
+                        style={styles.productImage}
+                      />
                     </View>
-                  )}
 
-                  <View style={styles.productImageContainer}>
-                    <Image source={product.image} style={styles.productImage} />
-                    
-                    {product.badge && (
-                      <View style={styles.badge}>
-                        <View style={styles.badgeContent}>
-                          <Text style={styles.badgePieces}>{product.badge.pieces}</Text>
-                          <Text style={styles.badgeText}>{product.badge.text}</Text>
+                    <View style={styles.productDetails}>
+                      <View style={styles.priceRow}>
+                        <View
+                          style={[
+                            styles.priceTag,
+                            showDiscount && styles.priceTagGreen,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.priceText,
+                              showDiscount && { color: '#fff' },
+                            ]}
+                          >
+                            ₹{item.price.selling_price}
+                          </Text>
                         </View>
+                        {showDiscount && (
+                          <Text style={styles.originalPrice}>
+                            ₹{item.price.mrp}
+                          </Text>
+                        )}
                       </View>
-                    )}
-                  </View>
 
-                  <View style={styles.productDetails}>
-                    <View style={styles.priceRow}>
-                      <View style={[
-                        styles.priceTag, 
-                        showGreenTag && styles.priceTagGreen, 
-                      ]}>
-                        <Text style={[
-                          styles.priceText,
-                          showGreenTag ? { color: '#fff' } : { color: '#000' }
-                        ]}>
-                          ₹{product.price}
-                        </Text>
-                      </View>
-                      {product.originalPrice && (
-                        <Text style={styles.originalPrice}>₹{product.originalPrice}</Text>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+
+                      <Text style={styles.productQuantity}>
+                        {item.quantity_info.size} {item.quantity_info.unit}
+                      </Text>
+
+                      {qty > 0 ? (
+                        <View style={styles.quantityControl}>
+                          <TouchableOpacity
+                            style={styles.quantityButton}
+                            onPress={() => handleDecreaseQty(item._id)}
+                          >
+                            <Icon name="remove" size={20} color="#fff" />
+                          </TouchableOpacity>
+                          <Text style={styles.quantityText}>{qty}</Text>
+                          <TouchableOpacity
+                            style={styles.quantityButton}
+                            onPress={() => handleIncreaseQty(item._id)}
+                          >
+                            <Icon name="add" size={20} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.addButton}
+                          onPress={() => handleAddToCart(item)}
+                        >
+                          <Text style={styles.addButtonText}>ADD</Text>
+                        </TouchableOpacity>
                       )}
                     </View>
-
-                    <Text style={styles.productName} numberOfLines={2}>
-                      {product.name}
-                    </Text>
-                    <Text style={styles.productQuantity}>{product.quantity}</Text>
-
-                    <View style={styles.ratingRow}>
-                      <Icon name="star" size={14} color="#16a34a" />
-                      <Text style={styles.ratingText}>
-                        {product.rating}({product.reviews})
-                      </Text>
-                    </View>
-
-                    {isInCart ? (
-                      <View style={styles.quantityControl}>
-                        <TouchableOpacity style={styles.quantityButton} onPress={() => decreaseQuantity(product.id)}>
-                          <Icon name="remove" size={20} color="#fff" />
-                        </TouchableOpacity>
-                        <Text style={styles.quantityText}>{quantity}</Text>
-                        <TouchableOpacity style={styles.quantityButton} onPress={() => increaseQuantity(product.id)}>
-                          <Icon name="add" size={20} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <TouchableOpacity style={styles.addButton} onPress={() => addToCart(product.id)}>
-                        <Text style={styles.addButtonText}>ADD</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
-      </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      )}
+      <CartButton />
     </SafeAreaView>
   );
 };
@@ -887,5 +516,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
 });
+
 
 export default FreshVeg;

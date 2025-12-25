@@ -9,9 +9,12 @@ import {
   SafeAreaView,
   Animated,
   Platform,
+  Alert,
 } from 'react-native';
+import { verifyOtp, sendOtp } from '../api';
 
-export default function Screen2({ navigation }) {
+export default function Screen2({ navigation, route }) {
+  const { phoneNumber } = route.params || {};
   // OTP state (6 digits)
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(28);
@@ -139,17 +142,19 @@ export default function Screen2({ navigation }) {
     }
   };
 
-  const verifyOTP = () => {
+  const verifyOTP = async () => {
     const enteredOtp = otp.join('');
-    // Example success code '151515' — change to your verification logic
-    const CORRECT = '151515';
-
-    if (enteredOtp === CORRECT) {
-      // success -> navigate
-      verifyingRef.current = false;
-      navigation.replace('AddressList');
-    } else {
-      // wrong OTP -> show error, reset inputs, animate error
+    
+    try {
+      const response = await verifyOtp(phoneNumber, enteredOtp);
+      
+      if (response.ok) {
+        verifyingRef.current = false;
+        navigation.replace('LocationHeader');
+      } else {
+        throw new Error('Invalid OTP');
+      }
+    } catch (err) {
       setError(true);
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -157,7 +162,6 @@ export default function Screen2({ navigation }) {
         useNativeDriver: true,
       }).start();
 
-      // clear OTP and focus first; small delay so animation runs nicely
       setTimeout(() => {
         setOtp(['', '', '', '', '', '']);
         verifyingRef.current = false;
@@ -166,7 +170,7 @@ export default function Screen2({ navigation }) {
     }
   };
 
-  const handleResendOTP = () => {
+  const handleResendOTP = async () => {
     // reset timer & otp & error
     if (intervalRef.current) clearInterval(intervalRef.current);
     setTimer(28);
@@ -174,6 +178,12 @@ export default function Screen2({ navigation }) {
     setError(false);
     fadeAnim.setValue(0);
     verifyingRef.current = false;
+
+    try {
+      await sendOtp(phoneNumber);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to resend OTP');
+    }
 
     // restart timer
     intervalRef.current = setInterval(() => {

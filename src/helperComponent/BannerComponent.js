@@ -7,7 +7,7 @@ const BannerComponent = () => {
       <Image
         source={require('../images/priceBanner.png')}
         style={styles.bannerImage}
-        resizeMode="cover"
+        resizeMode="stretch"
       />
     </View>
   );
@@ -16,7 +16,7 @@ const BannerComponent = () => {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    height: '14%',
+    height: Dimensions.get('window').height * 0.15,
   },
   bannerImage: {
     width: '100%',

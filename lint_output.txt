@@ -1,0 +1,103 @@
+
+> Keeva@0.0.1 lint
+> eslint .
+
+
+e:\keevaapp\BACKEND_paymentController.js
+  24:7  warning  'payment' is assigned a value but never used  no-unused-vars
+
+e:\keevaapp\BACKEND_paymentController_UPDATED.js
+  11:7  warning  'payment' is assigned a value but never used  no-unused-vars
+
+e:\keevaapp\src\CaategoryScreen\AllCategoryPage.js
+  173:47  warning  Inline style: { color: '#fff' }  react-native/no-inline-styles
+
+e:\keevaapp\src\CaategoryScreen\FreshFruit.js
+  173:47  warning  Inline style: { color: '#fff' }  react-native/no-inline-styles
+
+e:\keevaapp\src\CaategoryScreen\FreshVeg.js
+  173:47  warning  Inline style: { color: '#fff' }  react-native/no-inline-styles
+
+e:\keevaapp\src\CaategoryScreen\GroceryScreen.js
+  173:47  warning  Inline style: { color: '#fff' }  react-native/no-inline-styles
+
+e:\keevaapp\src\CaategoryScreen\MilkBread.js
+  173:47  warning  Inline style: { color: '#fff' }  react-native/no-inline-styles
+
+e:\keevaapp\src\cart\CheckoutScreen.js
+  184:22  warning  Inline style: { width: 24 }         react-native/no-inline-styles
+  247:50  warning  Inline style: { color: '#0F9D58' }  react-native/no-inline-styles
+
+e:\keevaapp\src\cart\KeevaCart.js
+   56:7   warning  Unexpected alert                  no-alert
+  205:59  warning  Inline style: { marginRight: 6 }  react-native/no-inline-styles
+
+e:\keevaapp\src\helperComponent\CategorySlider.js
+  8:3  warning  'Dimensions' is defined but never used  no-unused-vars
+
+e:\keevaapp\src\helperComponent\SearchBar.js
+  27:6  error  React Hook useEffect has a missing dependency: 'placeholderItems.length'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+e:\keevaapp\src\helperComponent\TrendingGrocery.js
+   18:8   warning  'CartButton' is defined but never used  no-unused-vars
+  169:48  warning  Inline style: { marginTop: 40 }         react-native/no-inline-styles
+
+e:\keevaapp\src\profilepages\AddressPage.js
+    1:27  warning  'useEffect' is defined but never used                                no-unused-vars
+  250:24  warning  Inline style: { flexDirection: 'row', alignItems: 'center' }         react-native/no-inline-styles
+  308:68  warning  Inline style: { marginTop: 20 }                                      react-native/no-inline-styles
+  313:26  warning  Inline style: { textAlign: 'center', marginTop: 20, color: '#666' }  react-native/no-inline-styles
+  407:20  warning  Inline style: { flex: 1 }                                            react-native/no-inline-styles
+  474:54  warning  Inline style: { flex: 1, marginRight: 10 }                           react-native/no-inline-styles
+  483:54  warning  Inline style: { flex: 1 }                                            react-native/no-inline-styles
+  527:30  warning  Inline style: { height: 40 }                                         react-native/no-inline-styles
+
+e:\keevaapp\src\profilepages\HelpSupport.js
+  168:52  warning  Inline style: { backgroundColor: '#E8F5F1' }  react-native/no-inline-styles
+  185:52  warning  Inline style: { backgroundColor: '#E8F8F5' }  react-native/no-inline-styles
+  202:52  warning  Inline style: { backgroundColor: '#FFF4E6' }  react-native/no-inline-styles
+
+e:\keevaapp\src\profilepages\Profilepage.js
+  59:26  warning  'email' is already declared in the upper scope on line 22 column 10   no-shadow
+  64:27  warning  'mobile' is already declared in the upper scope on line 21 column 10  no-shadow
+
+e:\keevaapp\src\profilepages\YourOrders.js
+  476:24  warning  Inline style: { fontSize: 26 }                                          react-native/no-inline-styles
+  479:22  warning  Inline style: { flex: 1 }                                               react-native/no-inline-styles
+  529:18  warning  Inline style: { flex: 1, backgroundColor: '#fff' }                      react-native/no-inline-styles
+  541:13  warning  Inline style: { backgroundColor: "socketConnected ? 'green' : 'red'" }  react-native/no-inline-styles
+  547:48  warning  Inline style: { marginTop: 50 }                                         react-native/no-inline-styles
+  549:22  warning  Inline style: { textAlign: 'center', marginTop: 50 }                    react-native/no-inline-styles
+
+e:\keevaapp\src\redux\cartSlice.js
+  25:38  warning  'item' is already declared in the upper scope on line 25 column 13  no-shadow
+  32:38  warning  'item' is already declared in the upper scope on line 32 column 13  no-shadow
+  37:45  warning  'item' is already declared in the upper scope on line 32 column 13  no-shadow
+
+e:\keevaapp\src\screens\AddressListScreen.js
+  14:8  warning  'MaterialIcon' is defined but never used    no-unused-vars
+  16:9  warning  'width' is assigned a value but never used  no-unused-vars
+
+e:\keevaapp\src\screens\MapPickerScreen.js
+  14:9   warning  'width' is assigned a value but never used   no-unused-vars
+  14:16  warning  'height' is assigned a value but never used  no-unused-vars
+
+e:\keevaapp\src\screens\Screen1.js
+  36:13  warning  'response' is assigned a value but never used  no-unused-vars
+  52:16  warning  Inline style: { flex: 1 }                      react-native/no-inline-styles
+
+e:\keevaapp\src\screens\Screen2.js
+  184:7   warning  Value of 'error' may be overwritten in IE 8 and earlier              no-catch-shadow
+  184:14  warning  'error' is already declared in the upper scope on line 21 column 10  no-shadow
+  246:54  warning  Inline style: { color: '#000' }                                      react-native/no-inline-styles
+  253:33  warning  Inline style: { marginTop: 18 }                                      react-native/no-inline-styles
+
+e:\keevaapp\src\screens\Screen3.js
+  6:18  warning  Inline style: { flex: 1, alignItems: 'center', justifyContent: 'center' }  react-native/no-inline-styles
+  7:20  warning  Inline style: { fontSize: 22, marginBottom: 20 }                           react-native/no-inline-styles
+
+e:\keevaapp\src\screens\SplashScreen.js
+  35:6  error  React Hook useEffect has a missing dependency: 'checkToken'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 50 problems (2 errors, 48 warnings)
+

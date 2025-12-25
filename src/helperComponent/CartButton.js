@@ -9,6 +9,10 @@ export default function CartButton() {
   const cartItems = useSelector((state) => state.cart.items);
   const itemCount = cartItems.length;
 
+  if (itemCount === 0) {
+    return null;
+  }
+
   return (
     <TouchableOpacity
       style={styles.cartButton}
@@ -19,7 +23,7 @@ export default function CartButton() {
         <View style={styles.cartIconContainer}>
           <Icon name="cart" size={28} color="#FFFFFF" />
           <View style={styles.badge}>
-            <Icon name="star" size={12} color="#FF0066" />
+            <Text style={styles.badgeText}>{itemCount}</Text>
           </View>
         </View>
 
@@ -37,7 +41,7 @@ export default function CartButton() {
 const styles = StyleSheet.create({
   cartButton: {
     position: 'absolute',
-    bottom: 2,
+    bottom: 20,
     right: 3,
     backgroundColor: '#FF0066',
     borderRadius: 30,
@@ -68,6 +72,11 @@ const styles = StyleSheet.create({
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  badgeText: {
+    color: '#d91c5c',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   cartTextContainer: {
     justifyContent: 'center',

@@ -7,6 +7,7 @@ import { store } from "./src/redux/store";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import SplashScreen from "./src/screens/SplashScreen";
 import Screen1 from "./src/screens/Screen1";
 import Screen2 from "./src/screens/Screen2";
 import Screen3 from "./src/screens/Screen3";
@@ -20,8 +21,17 @@ import GroceryScreen from "./src/CaategoryScreen/GroceryScreen"
 import MilkBread from "./src/CaategoryScreen/MilkBread"
 import FreshVeg from "./src/CaategoryScreen/FreshVeg"
 import FreshFruit from "./src/CaategoryScreen/FreshFruit"
-import Profile from "./src/Profile/Profilepage";
+import Profile from "./src/Profile/Profile";
 import KeevaCart from "./src/cart/KeevaCart";
+import CheckoutScreen from "./src/cart/CheckoutScreen";
+import ProductDetailPage from "./src/screens/ProductDetailPage";
+
+// Profile Screen Calling 
+import ProfilePage from "./src/profilepages/Profilepage"
+import YourOrders from "./src/profilepages/YourOrders"
+import AddressPage from "./src/profilepages/AddressPage"
+import HelpSupport from "./src/profilepages/HelpSupport"
+import Rewards from "./src/profilepages/Rewards"
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -32,7 +42,13 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         <NavigationContainer>
-        <Stack.Navigator initialRouteName="Screen1">
+        <Stack.Navigator initialRouteName="SplashScreen">
+
+          <Stack.Screen
+            name="SplashScreen"
+            component={SplashScreen}
+            options={{ headerShown: false }}
+          />
 
           <Stack.Screen
             name="Screen1"
@@ -111,6 +127,11 @@ export default function App() {
             options={{ headerShown: false }}
           />
 
+          <Stack.Screen
+            name="ProductDetailPage"
+            component={ProductDetailPage}
+            options={{ headerShown: false }}
+          />
 
            <Stack.Screen
             name="Profile"
@@ -124,8 +145,50 @@ export default function App() {
             options={{ headerShown: false }}
           />
 
- 
+          <Stack.Screen
+            name="CheckoutScreen"
+            component={CheckoutScreen}
+            options={{ headerShown: false }}
+          />
 
+     {/* Profile Page Screen  */}
+
+
+             <Stack.Screen
+            name="ProfilePage"
+            component={ProfilePage}
+            options={{ headerShown: false }}
+          />
+
+
+
+
+             <Stack.Screen
+            name="YourOrders"
+            component={YourOrders}
+            options={{ headerShown: false }}
+          />
+    <Stack.Screen
+            name="AddressPage"
+            component={AddressPage}
+            options={{ headerShown: false }}
+          />
+
+
+          {/* HelpSupport */}
+ 
+  <Stack.Screen
+            name="HelpSupport"
+            component={HelpSupport}
+            options={{ headerShown: false }}
+          />
+
+          {/* Rewards - Refer A Friend */}
+  <Stack.Screen
+            name="Rewards"
+            component={Rewards}
+            options={{ headerShown: false }}
+          />
 
            
 

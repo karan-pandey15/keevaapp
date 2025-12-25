@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import {
   View,
   Text,
@@ -6,233 +6,209 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { addItem, incrementQuantity, decrementQuantity } from "../redux/cartSlice";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import {
+  addItem,
+  incrementQuantity,
+  decrementQuantity,
+} from "../redux/cartSlice";
 
 const { width } = Dimensions.get("window");
-
-// Perfectly calculated width for 3 products everywhere
 const ITEM_WIDTH = (width - 48) / 3;
+const API_URL = "https://api.keeva.in/products";
+const FALLBACK_IMAGE = require("../images/grocery.png");
 
-const TrendingGrocery = () => {
+const TrendingGrocery = forwardRef((props, ref) => {
+  /* ✅ HOOKS — MUST BE FIRST */
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   const cartItems = useSelector((state) => state.cart.items);
 
-  const [products] = useState([
-    {
-      id: "1",
-      name: "Amul Gold Full Cream Fresh Milk (Pouch)",
-      price: 35,
-      originalPrice: null,
-      discount: null,
-      weight: "1 pack (500 ml)",
-      tag: "Full Cream",
-      image: require("../images/grocery.png"),
-    },
-    {
-      id: "2",
-      name: "Coriander leaves",
-      price: 17,
-      originalPrice: 23,
-      discount: "₹6 OFF",
-      weight: "100 g",
-      tag: null,
-      image: require("../images/grocery.png"),
-    },
-    {
-      id: "3",
-      name: "ZOFF Big Cardamom Whole",
-      price: 80,
-      originalPrice: 128,
-      discount: "₹48 OFF",
-      weight: "1 pack (25 g)",
-      tag: null,
-      image: require("../images/grocery.png"),
-      isAd: true,
-    },
-    {
-      id: "4",
-      name: "Onion",
-      price: 32,
-      originalPrice: 42,
-      discount: "₹10 OFF",
-      weight: "1 Pack (900 - 1000 g)",
-      tag: null,
-      image: require("../images/grocery.png"),
-    },
-    {
-      id: "5",
-      name: "Mother Dairy Fresh Paneer",
-      price: 85,
-      originalPrice: 92,
-      discount: "₹7 OFF",
-      weight: "1 pack (200 g)",
-      tag: null,
-      image: require("../images/grocery.png"),
-    },
-    {
-      id: "6",
-      name: "Centrum Recharge Kids Powder",
-      price: 9,
-      originalPrice: 60,
-      discount: "₹51 OFF",
-      weight: "1 pack (6 Sachets)",
-      tag: "Electrolyte",
-      image: require("../images/grocery.png"),
-      isAd: true,
-    },
-    {
-      id: "7",
-      name: "Tender Coconut",
-      price: 70,
-      originalPrice: 89,
-      discount: "₹19 OFF",
-      weight: "1 piece",
-      tag: null,
-      image: require("../images/grocery.png"),
-    },
-    {
-      id: "8",
-      name: "Aashirvaad Superior MP Atta",
-      price: 455,
-      originalPrice: 499,
-      discount: "₹44 OFF",
-      weight: "5 kg",
-      tag: null,
-      image: require("../images/grocery.png"),
-    },
-  ]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  /* ---------------- FETCH PRODUCTS FUNCTION ---------------- */
+  const fetchProducts = async (showLoading = false) => {
+    try {
+      if (showLoading) setLoading(true);
+      
+      const res = await fetch(API_URL);
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        const mapped = data.products.map((p) => ({
+          id: p._id,
+          name: p.name,
+          price: p.price?.selling_price ?? 0,
+          originalPrice: p.price?.mrp ?? null,
+          discount:
+            p.price?.discount_percent > 0
+              ? `${p.price.discount_percent}% OFF`
+              : null,
+          weight: `${p.quantity_info?.size ?? ""} ${
+            p.quantity_info?.unit ?? ""
+          }`,
+          tag: p.brand || null,
+          image:
+            p.images?.length > 0
+              ? { uri: p.images[0].url }
+              : FALLBACK_IMAGE,
+          originalProduct: p,
+        }));
+
+        setProducts(mapped);
+      }
+    } catch (err) {
+      console.log("Fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- EXPOSE REFRESH FUNCTION TO PARENT ---------------- */
+  useImperativeHandle(ref, () => ({
+    refreshProducts: () => fetchProducts(false),
+  }));
+
+  /* ---------------- INITIAL FETCH & FOCUS EFFECT ---------------- */
+  useEffect(() => {
+    fetchProducts(true);
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProducts(false);
+    }, [])
+  );
+
+  /* ---------------- CART HELPERS ---------------- */
   const getItemQuantity = (id) => {
-    const item = cartItems.find((item) => item.id === id);
+    const item = cartItems.find((i) => i.id === id);
     return item ? item.quantity : 0;
   };
 
-  const handleAddClick = (product) => {
-    dispatch(addItem(product));
-  };
-
-  const handleIncrement = (id) => {
-    dispatch(incrementQuantity(id));
-  };
-
-  const handleDecrement = (id) => {
-    dispatch(decrementQuantity(id));
-  };
-
+  /* ---------------- RENDER PRODUCT ---------------- */
   const renderProduct = ({ item }) => {
     const quantity = getItemQuantity(item.id);
+
+    const handleProductPress = () => {
+      if (item.originalProduct) {
+        navigation.navigate('ProductDetailPage', { product: item.originalProduct });
+      }
+    };
+
     return (
-    <View style={styles.productCard}>
-      {/* IMAGE */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={item.image}
-          style={styles.productImage}
-          resizeMode="contain"
-        />
-        {item.isAd && (
-          <View style={styles.adBadge}>
-            <Text style={styles.adText}>Ad</Text>
-          </View>
-        )}
-      </View>
+      <TouchableOpacity 
+        style={styles.productCard}
+        onPress={handleProductPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.imageContainer}>
+          <Image
+            source={item.image}
+            style={styles.productImage}
+            resizeMode="contain"
+          />
+        </View>
 
-      {/* ADD BUTTON OR QTY */}
-      <View style={styles.addButtonContainer}>
-        {quantity === 0 ? (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => handleAddClick(item)}
-          >
-            <Text style={styles.addButtonText}>ADD</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.quantitySelector}>
+        <View style={styles.addButtonContainer}>
+          {quantity === 0 ? (
             <TouchableOpacity
-              onPress={() => handleDecrement(item.id)}
-              style={styles.quantityButton}
+              style={styles.addButton}
+              onPress={() => dispatch(addItem(item))}
             >
-              <Text style={styles.quantityButtonText}>−</Text>
+              <Text style={styles.addButtonText}>ADD</Text>
             </TouchableOpacity>
+          ) : (
+            <View style={styles.quantitySelector}>
+              <TouchableOpacity
+                onPress={() => dispatch(decrementQuantity(item.id))}
+                style={styles.quantityButton}
+              >
+                <Text style={styles.quantityButtonText}>−</Text>
+              </TouchableOpacity>
 
-            <Text style={styles.quantityText}>{quantity}</Text>
+              <Text style={styles.quantityText}>{quantity}</Text>
 
-            <TouchableOpacity
-              onPress={() => handleIncrement(item.id)}
-              style={styles.quantityButton}
-            >
-              <Text style={styles.quantityButtonText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* PRODUCT DETAILS */}
-      <View style={styles.detailsContainer}>
-        <View style={styles.priceRow}>
-          <View style={styles.priceBadge}>
-            <Text style={styles.priceText}>₹{item.price}</Text>
-          </View>
-
-          {item.originalPrice && (
-            <Text style={styles.originalPrice}>₹{item.originalPrice}</Text>
+              <TouchableOpacity
+                onPress={() => dispatch(incrementQuantity(item.id))}
+                style={styles.quantityButton}
+              >
+                <Text style={styles.quantityButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
-        {item.discount && (
-          <Text style={styles.discountText}>{item.discount}</Text>
-        )}
+        <View style={styles.detailsContainer}>
+          <View style={styles.priceRow}>
+            <View style={styles.priceBadge}>
+              <Text style={styles.priceText}>₹{item.price}</Text>
+            </View>
 
-        <Text style={styles.productName} numberOfLines={2}>
-          {item.name}
-        </Text>
-
-        <Text style={styles.weightText}>{item.weight}</Text>
-
-        {item.tag && (
-          <View style={styles.tagContainer}>
-            <Text style={styles.tagText}>{item.tag}</Text>
+            {item.originalPrice && (
+              <Text style={styles.originalPrice}>
+                ₹{item.originalPrice}
+              </Text>
+            )}
           </View>
-        )}
-      </View>
-    </View>
+
+          {item.discount && (
+            <Text style={styles.discountText}>{item.discount}</Text>
+          )}
+
+          <Text style={styles.productName} numberOfLines={2}>
+            {item.name}
+          </Text>
+
+          <Text style={styles.weightText}>{item.weight}</Text>
+
+          {item.tag && (
+            <View style={styles.tagContainer}>
+              <Text style={styles.tagText}>{item.tag}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
+  /* ---------------- UI (NO EARLY RETURNS) ---------------- */
   return (
     <View style={styles.wrapper}>
       <Text style={styles.headerText}>
-        Trending in <Text style={styles.headerHighlight}>Belha, Pratapgarh </Text>
+        Trending in{" "}
+        <Text style={styles.headerHighlight}>Belha, Pratapgarh</Text>
       </Text>
 
-      {/* Scrollable List */}
-      <FlatList
-        data={products}
-        renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
-        numColumns={3}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.gridContainer}
-      />
-      
-      {/* See All Button */}
-      <TouchableOpacity style={styles.seeAllButton} activeOpacity={0.9}>
-        <Text style={styles.seeAllText}>See All</Text>
-        <Text style={styles.arrowText}>→</Text>
-      </TouchableOpacity>
+      {loading ? (
+        <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={products}
+          renderItem={renderProduct}
+          keyExtractor={(item) => item.id}
+          numColumns={3}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.gridContainer}
+        />
+      )} 
     </View>
   );
-};
+});
 
+TrendingGrocery.displayName = 'TrendingGrocery';
+
+/* ---------------- STYLES (UNCHANGED) ---------------- */
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: "#ffffff",
-    paddingTop: 10,
+    paddingTop: 10, 
   },
 
   headerText: {

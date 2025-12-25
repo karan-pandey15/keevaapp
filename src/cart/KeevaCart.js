@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -26,11 +26,51 @@ const KeevaCartScreen = ({navigation}) => {
     }
   };
 
-  const totalSavings = 74;
-  const itemTotal = 156;
-  const finalTotal = 122;
-  const deliveryFee = 30;
-  const handlingFee = 10;
+  const calculateTotals = useMemo(() => {
+    const itemTotal = cartItems.reduce((sum, item) => {
+      return sum + (item.price * item.quantity);
+    }, 0);
+
+    const originalTotal = cartItems.reduce((sum, item) => {
+      const original = item.originalPrice || item.price;
+      return sum + (original * item.quantity);
+    }, 0);
+
+    const discount = Math.max(0, originalTotal - itemTotal);
+    const deliveryFee = itemTotal >= 159 ? 0 : 30;
+    const handlingFee = 0;
+    const finalTotal = itemTotal + deliveryFee + handlingFee;
+
+    return {
+      itemTotal: Math.round(itemTotal),
+      discount: Math.round(discount),
+      deliveryFee,
+      handlingFee,
+      finalTotal: Math.round(finalTotal),
+      totalSavings: Math.round(discount + deliveryFee + handlingFee),
+    };
+  }, [cartItems]);
+
+  const handlePayClick = () => {
+    if (cartItems.length === 0) {
+      return;
+    }
+
+    navigation.navigate('CheckoutScreen', {
+      itemTotal: calculateTotals.itemTotal,
+      discount: calculateTotals.discount,
+      deliveryFee: calculateTotals.deliveryFee,
+      finalTotal: calculateTotals.finalTotal,
+    });
+  };
+
+  const handleBrowseProducts = () => {
+    navigation.navigate('AllCategoryPage');
+  };
+
+  const itemTotal = calculateTotals.itemTotal;
+  const finalTotal = calculateTotals.finalTotal;
+  const deliveryFee = calculateTotals.deliveryFee;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -58,16 +98,10 @@ const KeevaCartScreen = ({navigation}) => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Savings Banner */}
-        <View style={styles.savingsBanner}>
-          <Text style={styles.savingsText}>
-            Yay! You <Text style={styles.savedAmount}>saved ₹{totalSavings}</Text> on this order
-          </Text>
-          <Icon name="chevron-down" size={16} color="#0F9D58" />
-        </View>
-
+     
        
  
-        {/* Coupon Section */}
+        {/* Coupon Section
         <View style={styles.couponCard}>
           <View style={styles.couponLeft}>
             <Icon name="percent" size={22} color="#0F9D58" />
@@ -79,190 +113,109 @@ const KeevaCartScreen = ({navigation}) => {
           <TouchableOpacity style={styles.applyBtn}>
             <Text style={styles.applyText}>Apply</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
-        <TouchableOpacity style={styles.viewCoupons}>
+        {/* <TouchableOpacity style={styles.viewCoupons}>
           <Text style={styles.viewCouponsText}>View all coupons ›</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Delivery Time */}
-        <View style={styles.deliveryTime}>
-          <Icon name="flash" size={20} color="#FFA000" />
-          <Text style={styles.deliveryText}>Delivery in 10 mins</Text>
-        </View>
-
-        {/* Cart Items */}
-        {Array.isArray(cartItems) && cartItems.length > 0 ? (
-          cartItems.map((item) => (
-            <View key={item.id} style={styles.cartItem}>
-              <Image 
-                source={item.image} 
-                style={styles.itemImage}
-                resizeMode="cover"
-              />
-              <View style={styles.itemDetails}>
-                <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.itemUnit}>{item.unit}</Text>
-                <View style={styles.qtyControl}>
-                  <TouchableOpacity 
-                    style={styles.qtyBtn}
-                    onPress={() => updateQuantity(item.id, -1)}
-                  >
-                    <Text style={styles.qtyBtnText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.qtyText}>{item.quantity}</Text>
-                  <TouchableOpacity 
-                    style={styles.qtyBtn}
-                    onPress={() => updateQuantity(item.id, 1)}
-                  >
-                    <Text style={styles.qtyBtnText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.itemPriceBox}>
-                <Text style={styles.itemPrice}>₹{item.price}</Text>
-                <Text style={styles.itemOriginalPrice}>₹{item.originalPrice}</Text>
-              </View>
-            </View>
-          ))
-        ) : (
-          <View style={styles.emptyCart}>
-            <Text style={styles.emptyCartText}>Your cart is empty</Text>
+        {cartItems.length > 0 && (
+          <View style={styles.deliveryTime}>
+            <Icon name="flash" size={20} color="#FFA000" />
+            <Text style={styles.deliveryText}>Delivery in 30 mins</Text>
           </View>
         )}
 
-        {/* Exclusive Offer */}
-        <View style={styles.exclusiveOffer}>
-          <View style={styles.exclusiveHeader}>
-            <Icon name="fire" size={16} color="#1976D2" />
-            <Text style={styles.exclusiveText}>Exclusive cart offer - Add & get 17% off!</Text>
-            <TouchableOpacity>
-              <Icon name="close" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.offerItem}>
-            <Image 
-              source={require('../images/grocery.png')} 
-              style={styles.offerImage}
-              resizeMode="cover"
-            />
-            <View style={styles.offerDetails}>
-              <Text style={styles.offerItemName}>Country Delight - Ghar Jaisa Dahi</Text>
-              <Text style={styles.offerItemUnit}>1 pc (400 g)</Text>
-            </View>
-            <TouchableOpacity style={styles.addBtn}>
-              <Text style={styles.addBtnText}>ADD</Text>
-            </TouchableOpacity>
-            <View style={styles.offerPriceBox}>
-              <Text style={styles.offerPrice}>₹66</Text>
-              <Text style={styles.offerOriginalPrice}>₹80</Text>
-            </View>
-          </View>
-        </View>
+        {/* Cart Items */}
+        {Array.isArray(cartItems) && cartItems.length > 0 ? (
+          <>
+            {cartItems.map((item) => (
+              <View key={item.id} style={styles.cartItem}>
+                <Image 
+                  source={item.image} 
+                  style={styles.itemImage}
+                  resizeMode="contain"
+                />
+                <View style={styles.itemDetails}>
+                  <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+                  <View style={styles.qtyControl}>
+                    <TouchableOpacity 
+                      style={styles.qtyBtn}
+                      onPress={() => updateQuantity(item.id, -1)}
+                    >
+                      <Text style={styles.qtyBtnText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.qtyText}>{item.quantity}</Text>
+                    <TouchableOpacity 
+                      style={styles.qtyBtn}
+                      onPress={() => updateQuantity(item.id, 1)}
+                    >
+                      <Text style={styles.qtyBtnText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={styles.itemPriceBox}>
+                  <Text style={styles.itemPrice}>₹{item.price * item.quantity}</Text>
+                  {item.originalPrice && (
+                    <Text style={styles.itemOriginalPrice}>₹{item.originalPrice * item.quantity}</Text>
+                  )}
+                </View>
+              </View>
+            ))}
 
-        {/* Add More Items */}
-        <TouchableOpacity style={styles.addMoreBtn}>
-          <Icon name="plus" size={18} color="#FFF" style={{marginRight: 6}} />
-          <Text style={styles.addMoreText}>Add More Items</Text>
-        </TouchableOpacity>
+            {/* Bill Summary */}
+            <View style={styles.billSummary}>
+              <View style={styles.billHeader}>
+                <Icon name="receipt" size={22} color="#333" />
+                <Text style={styles.billTitle}>Bill Summary</Text>
+              </View>
+              
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Item Total</Text>
+                <Text style={styles.billPrice}>₹{itemTotal}</Text>
+              </View>
+              
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Delivery Fee</Text>
+                <Text style={styles.billFree}>{deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}</Text>
+              </View>
+              
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Handling Fee</Text>
+                <Text style={styles.billFree}>FREE</Text>
+              </View>
+              
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>To Pay</Text>
+                <Text style={styles.totalPrice}>₹{finalTotal}</Text>
+              </View>
+            </View>
 
-        {/* Bill Summary */}
-        <View style={styles.billSummary}>
-          <View style={styles.billHeader}>
-            <Icon name="receipt" size={22} color="#333" />
-            <Text style={styles.billTitle}>Bill Summary</Text>
-          </View>
-          
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Item Total</Text>
-            <View style={styles.billPriceBox}>
-              <Text style={styles.billStrike}>₹{itemTotal}</Text>
-              <Text style={styles.billPrice}>₹{finalTotal}</Text>
+            <View style={styles.bottomSpacing} />
+          </>
+        ) : (
+          <View style={styles.emptyCartContainer}>
+            <View style={styles.emptyCartContent}>
+              <Icon name="cart-outline" size={80} color="#ddd" />
+              <Text style={styles.emptyCartText}>Your cart is empty</Text>
+              <Text style={styles.emptyCartSubtext}>Add some items to get started</Text>
             </View>
           </View>
-          
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Delivery Fee</Text>
-            <View style={styles.billPriceBox}>
-              <Text style={styles.billStrike}>₹{deliveryFee}</Text>
-              <Text style={styles.billFree}>FREE</Text>
-            </View>
-          </View>
-          
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Handling Fee</Text>
-            <View style={styles.billPriceBox}>
-              <Text style={styles.billStrike}>₹{handlingFee}</Text>
-              <Text style={styles.billFree}>FREE</Text>
-            </View>
-          </View>
-          
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>To Pay</Text>
-            <View style={styles.totalPriceBox}>
-              <Text style={styles.totalStrike}>₹196</Text>
-              <Text style={styles.totalPrice}>₹{finalTotal}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Savings Summary */}
-        <View style={styles.savingsSummary}>
-          <View style={styles.savingsHeader}>
-            <Text style={styles.savingsSummaryTitle}>Savings on this order</Text>
-            <View style={styles.savingsBadge}>
-              <Text style={styles.savingsBadgeText}>₹{totalSavings}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.savingsRow}>
-            <View style={styles.savingsIcon}>
-              <Icon name="percent" size={16} color="#0F9D58" />
-            </View>
-            <Text style={styles.savingsLabel}>Discount on MRP</Text>
-            <Text style={styles.savingsValue}>₹34</Text>
-          </View>
-          
-          <View style={styles.savingsRow}>
-            <View style={styles.savingsIcon}>
-              <Icon name="package-variant" size={16} color="#0F9D58" />
-            </View>
-            <Text style={styles.savingsLabel}>FREE delivery savings</Text>
-            <Text style={styles.savingsValue}>₹30</Text>
-          </View>
-          
-          <View style={styles.savingsRow}>
-            <View style={styles.savingsIcon}>
-              <Icon name="currency-rupee" size={16} color="#0F9D58" />
-            </View>
-            <Text style={styles.savingsLabel}>Savings on Handling fee</Text>
-            <Text style={styles.savingsValue}>₹10</Text>
-          </View>
-        </View>
-
-        {/* Location */}
-        <View style={styles.locationBar}>
-          <Icon name="map-marker-outline" size={18} color="#666" />
-          <Text style={styles.locationText}>Other - Yamaha Vihar Colony, Baraula...</Text>
-          <Icon name="clock-outline" size={14} color="#FF9800" />
-          <Text style={styles.distance}>543.5 km away</Text>
-          <Icon name="chevron-down" size={18} color="#666" />
-        </View>
-
-        {/* No Bag Delivery */}
-        <View style={styles.noBagDelivery}>
-          <Icon name="check-circle" size={20} color="#0F9D58" />
-          <Text style={styles.noBagText}>We have opted you in for no bag delivery 🍃</Text>
-          <Icon name="chevron-right" size={20} color="#999" />
-        </View>
-
-        <View style={styles.bottomSpacing} />
+        )}
       </ScrollView>
 
-      {/* Pay Button */}
-      <TouchableOpacity style={styles.payButton} activeOpacity={0.8}>
-        <Text style={styles.payButtonText}>Click to Pay ₹{finalTotal}</Text>
-      </TouchableOpacity>
+      {/* Bottom Button - Pay or Browse Products */}
+      {cartItems.length > 0 ? (
+        <TouchableOpacity style={styles.payButton} activeOpacity={0.8} onPress={handlePayClick}>
+          <Text style={styles.payButtonText}>Proceed to Checkout ₹{finalTotal}</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={styles.browseButton} activeOpacity={0.8} onPress={handleBrowseProducts}>
+          <Icon name="shopping" size={20} color="#fff" />
+          <Text style={styles.browseButtonText}>Browse Products</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };
@@ -297,7 +250,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 80,
+    flexGrow: 1,
+  },
+  emptyCartContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 400,
+    paddingVertical: 60,
+  },
+  emptyCartContent: {
+    alignItems: 'center',
+  },
+  emptyCartSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
   },
   savingsBanner: {
     flexDirection: 'row',
@@ -433,6 +402,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 16,
+    marginTop:10
   },
   deliveryText: {
     fontSize: 16,
@@ -790,22 +760,44 @@ const styles = StyleSheet.create({
     height: 20,
   },
   payButton: {
-    backgroundColor: '#FF1744',
+    backgroundColor: 'rgb(42,145,52)',
     marginHorizontal: 16,
     marginVertical: 12,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#FF1744',
+    shadowColor: 'rgb(42,145,52)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
   payButtonText: {
     color: '#FFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  browseButton: {
+    backgroundColor: 'rgb(42,145,52)',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: 'rgb(42,145,52)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  browseButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 
