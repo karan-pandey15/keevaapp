@@ -30,6 +30,7 @@ const CheckoutScreen = ({ navigation }) => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   const { itemTotal, finalTotal, discount, deliveryFee } = route.params || {
     itemTotal: 0,
@@ -53,8 +54,17 @@ const CheckoutScreen = ({ navigation }) => {
         setInitializing(false);
       }
     };
+
+    // Initial load
     initData();
-  }, []);
+
+    // Refresh data when screen comes into focus
+    const unsubscribe = navigation.addListener('focus', () => {
+      initData();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchProfile = async () => {
     try {
@@ -72,6 +82,17 @@ const CheckoutScreen = ({ navigation }) => {
       const data = await getAddresses();
       const addressList = data.addresses || [];
       setAddresses(addressList);
+      
+      if (addressList.length === 0) {
+        setToastMessage('Please Fill Address to Checkout');
+        setToastType('info');
+        setShowToast(true);
+        setTimeout(() => {
+          navigation.navigate('AddressPage');
+        }, 1000);
+        return;
+      }
+
       const defaultAddress = addressList.find((addr) => addr.isDefault);
       if (defaultAddress) {
         setSelectedAddressId(defaultAddress._id);
@@ -104,7 +125,7 @@ const CheckoutScreen = ({ navigation }) => {
       unitPrice: item.price,
       discount: Math.max(0, (item.originalPrice || item.price) - item.price),
       finalPrice: item.price,
-      image: "",
+      image: item.image?.uri || "",
     }));
 
     const addressPayload = selectedAddress ? {
@@ -262,8 +283,9 @@ const CheckoutScreen = ({ navigation }) => {
       <CustomToast 
         visible={showToast} 
         message={toastMessage}
-        duration={500}
+        duration={1000}
         onHide={() => setShowToast(false)}
+        type={toastType}
       />
 
       <View style={styles.header}>
@@ -278,29 +300,45 @@ const CheckoutScreen = ({ navigation }) => {
         <View style={styles.content}>
           {/* Delivery Address Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Delivery Address</Text>
-            {selectedAddress ? (
-              <View style={styles.addressBox}>
-                <Icon name="location-outline" size={20} color="rgb(42,145,52)" />
-                <View style={styles.addressInfo}>
-                  <Text style={styles.addressLabel}>{selectedAddress.label || 'Home'}</Text>
-                  <Text style={styles.addressText} numberOfLines={2}>
-                    {`${selectedAddress.houseNo}, ${selectedAddress.street}, ${selectedAddress.landmark ? selectedAddress.landmark + ', ' : ''}${selectedAddress.city}, ${selectedAddress.state} - ${selectedAddress.pincode}`}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => navigation.navigate('AddressPage')}>
-                  <Icon name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.addAddressButton}
-                onPress={() => navigation.navigate('AddressPage')}
-              >
-                <Icon name="add-circle-outline" size={24} color="rgb(42,145,52)" />
-                <Text style={styles.addAddressText}>Add Delivery Address</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Delivery Address</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('AddressPage')}>
+                <Text style={styles.addNewText}>+ Add New</Text>
               </TouchableOpacity>
-            )}
+            </View>
+            
+            {addresses.map((address) => (
+              <TouchableOpacity
+                key={address._id}
+                style={[
+                  styles.addressCard,
+                  selectedAddressId === address._id && styles.addressCardActive,
+                ]}
+                onPress={() => setSelectedAddressId(address._id)}
+              >
+                <View style={styles.addressCardContent}>
+                  <View
+                    style={[
+                      styles.radioButton,
+                      selectedAddressId === address._id && styles.radioButtonActive,
+                    ]}
+                  >
+                    {selectedAddressId === address._id && (
+                      <View style={styles.radioButtonInner} />
+                    )}
+                  </View>
+                  <View style={styles.addressInfo}>
+                    <View style={styles.addressLabelRow}>
+                      <Text style={styles.addressLabel}>{address.label || 'Home'}</Text>
+                      {address.isDefault && <Text style={styles.defaultBadge}>Default</Text>}
+                    </View>
+                    <Text style={styles.addressText} numberOfLines={2}>
+                      {`${address.houseNo}, ${address.street}, ${address.landmark ? address.landmark + ', ' : ''}${address.city}, ${address.state} - ${address.pincode}`}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Payment Method Section */}
@@ -315,7 +353,7 @@ const CheckoutScreen = ({ navigation }) => {
               onPress={() => setSelectedPayment('cod')}
             >
               <View style={styles.optionLeft}>
-                <Icon name="cash" size={28} color="rgb(42,145,52)" />
+                <Icon name="cash-outline" size={24} color="rgb(42,145,52)" />
                 <View style={styles.optionText}>
                   <Text style={styles.optionTitle}>Cash on Delivery</Text>
                   <Text style={styles.optionSubtitle}>Pay when you receive the order</Text>
@@ -327,7 +365,7 @@ const CheckoutScreen = ({ navigation }) => {
                   selectedPayment === 'cod' && styles.radioButtonActive,
                 ]}
               >
-                {selectedPayment === 'cod' && <Icon name="checkmark" size={16} color="rgb(42,145,52)" />}
+                {selectedPayment === 'cod' && <View style={styles.radioButtonInner} />}
               </View>
             </TouchableOpacity>
 
@@ -339,7 +377,7 @@ const CheckoutScreen = ({ navigation }) => {
               onPress={() => setSelectedPayment('online')}
             >
               <View style={styles.optionLeft}>
-                <Icon name="card" size={28} color="rgb(42,145,52)" />
+                <Icon name="card-outline" size={24} color="rgb(42,145,52)" />
                 <View style={styles.optionText}>
                   <Text style={styles.optionTitle}>Pay Online</Text>
                   <Text style={styles.optionSubtitle}>Secure payment via Razorpay</Text>
@@ -351,7 +389,7 @@ const CheckoutScreen = ({ navigation }) => {
                   selectedPayment === 'online' && styles.radioButtonActive,
                 ]}
               >
-                {selectedPayment === 'online' && <Icon name="checkmark" size={16} color="rgb(42,145,52)" />}
+                {selectedPayment === 'online' && <View style={styles.radioButtonInner} />}
               </View>
             </TouchableOpacity>
           </View>
@@ -432,7 +470,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+    marginBottom:10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  addNewText: {
+    fontSize: 14,
+    color: 'rgb(42,145,52)',
+    fontWeight: '600',
+  },
+  addressCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#F0F0F0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  addressCardActive: {
+    borderColor: 'rgb(42,145,52)',
+    backgroundColor: '#F9FFF9',
+    elevation: 3,
+  },
+  addressCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addressLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  defaultBadge: {
+    fontSize: 10,
+    color: 'rgb(42,145,52)',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  radioButtonInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgb(42,145,52)',
   },
   addressBox: {
     flexDirection: 'row',
@@ -569,7 +661,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgb(42,145,52)',
     paddingVertical: 14,
     marginHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 32,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',

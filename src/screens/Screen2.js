@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import RNOtpVerify from 'react-native-otp-verify';
 import { verifyOtp, sendOtp } from '../api';
 
 export default function Screen2({ navigation, route }) {
@@ -28,10 +29,58 @@ export default function Screen2({ navigation, route }) {
   // animated value for error message
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // focus first input on mount
+  // focus first input on mount and start OTP listener
   useEffect(() => {
     setTimeout(() => inputRefs.current[0]?.focus?.(), 200);
+
+    if (Platform.OS === 'android') {
+      try {
+        // Check if RNOtpVerify is properly linked
+        if (RNOtpVerify && typeof RNOtpVerify.getHash === 'function') {
+          // Get the hash code for your app which is required for SMS body
+          RNOtpVerify.getHash()
+            .then(hash => console.log('App Hash for SMS:', hash))
+            .catch(err => console.log('Error getting hash:', err));
+
+          RNOtpVerify.getOtp()
+            .then(res => {
+              RNOtpVerify.addListener(otpHandler);
+            })
+            .catch(p => console.log('Error getting OTP listener:', p));
+        } else {
+          console.warn('RNOtpVerify is not properly linked. Automatic OTP filling will not work until you rebuild the app.');
+        }
+      } catch (error) {
+        console.warn('RNOtpVerify error (likely linking issue):', error);
+      }
+    }
+
+    return () => {
+      if (Platform.OS === 'android') {
+        try {
+          if (RNOtpVerify && typeof RNOtpVerify.removeListener === 'function') {
+            RNOtpVerify.removeListener();
+          }
+        } catch (e) {
+          // Silent fail
+        }
+      }
+    };
   }, []);
+
+  const otpHandler = (message) => {
+    if (message && message !== 'Timeout Error.') {
+      // Extract 6 digits from the message
+      const otpMatch = /(\d{6})/.exec(message);
+      if (otpMatch && otpMatch[1]) {
+        const receivedOtp = otpMatch[1];
+        const otpArray = receivedOtp.split('');
+        setOtp(otpArray);
+        // Focus last input or blur
+        setTimeout(() => inputRefs.current[5]?.blur?.(), 100);
+      }
+    }
+  };
 
   // timer setup & cleanup
   useEffect(() => {
@@ -179,6 +228,20 @@ export default function Screen2({ navigation, route }) {
     fadeAnim.setValue(0);
     verifyingRef.current = false;
 
+    if (Platform.OS === 'android') {
+      try {
+        if (RNOtpVerify && typeof RNOtpVerify.getOtp === 'function') {
+          RNOtpVerify.getOtp()
+            .then(res => {
+              RNOtpVerify.addListener(otpHandler);
+            })
+            .catch(p => console.log('Error restarting OTP listener:', p));
+        }
+      } catch (e) {
+        console.log('RNOtpVerify error in resend:', e);
+      }
+    }
+
     try {
       await sendOtp(phoneNumber);
     } catch (error) {
@@ -239,6 +302,7 @@ export default function Screen2({ navigation, route }) {
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 returnKeyType="done"
                 textContentType="oneTimeCode"
+                autoComplete="one-time-code"
                 selectTextOnFocus
                 caretHidden={false}
                 autoFocus={false}

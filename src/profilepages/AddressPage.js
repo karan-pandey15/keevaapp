@@ -13,13 +13,16 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Switch
+  Switch,
+  PermissionsAndroid
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Geolocation from '@react-native-community/geolocation';
 import { BASE_URL } from '../api';
 import { useFocusEffect } from '@react-navigation/native';
+import CustomToast from '../helperComponent/CustomToast';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,12 +31,13 @@ const AddressPage = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false); // Options modal
   const [formModalVisible, setFormModalVisible] = useState(false); // Add/Edit form modal
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false); // Delete confirmation modal
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [formSlideAnim] = useState(new Animated.Value(height));
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastAnim] = useState(new Animated.Value(0));
+  const [toastType, setToastType] = useState('success');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -44,17 +48,20 @@ const AddressPage = ({ navigation }) => {
     city: '',
     state: '',
     pincode: '',
+    latitude: null,
+    longitude: null,
     isDefault: false
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState();
   const [submitting, setSubmitting] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const fetchAddresses = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
-        Alert.alert('Error', 'User not authenticated');
+        showToast('User not authenticated', 'info');
         return;
       }
 
@@ -94,7 +101,7 @@ const AddressPage = ({ navigation }) => {
 
   const handleSaveAddress = async () => {
     if (!formData.houseNo || !formData.street || !formData.city || !formData.state || !formData.pincode) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showToast('Please fill in all required fields', 'info');
       return;
     }
 
@@ -119,55 +126,47 @@ const AddressPage = ({ navigation }) => {
       const data = await response.json();
 
       if (response.ok) {
-        showToast(`Address ${isEditing ? 'updated' : 'added'} successfully`);
+        showToast(`Address ${isEditing ? 'updated' : 'added'} successfully`, 'success');
         hideFormModal();
         fetchAddresses();
       } else {
-        Alert.alert('Error', data.message || 'Something went wrong');
+        showToast(data.message || 'Something went wrong', 'info');
       }
     } catch (error) {
       console.error('Error saving address:', error);
-      Alert.alert('Error', 'Failed to save address');
+      showToast('Failed to save address', 'info');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDeleteAddress = async () => {
+  const handleDeleteAddress = () => {
     if (!selectedAddress) return;
+    setDeleteModalVisible(true);
+  };
 
-    Alert.alert(
-      'Delete Address',
-      'Are you sure you want to delete this address?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await AsyncStorage.getItem('userToken');
-              const response = await fetch(`${BASE_URL}/user/addresses/${selectedAddress._id || selectedAddress.id}`, {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                },
-              });
-
-              if (response.ok) {
-                hideModal();
-                fetchAddresses();
-              } else {
-                Alert.alert('Error', 'Failed to delete address');
-              }
-            } catch (error) {
-              console.error('Error deleting address:', error);
-              Alert.alert('Error', 'Failed to delete address');
-            }
-          },
+  const confirmDelete = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${BASE_URL}/user/addresses/${selectedAddress._id || selectedAddress.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
         },
-      ]
-    );
+      });
+
+      if (response.ok) {
+        setDeleteModalVisible(false);
+        hideModal();
+        fetchAddresses();
+        showToast('Address deleted successfully', 'success');
+      } else {
+        showToast('Failed to delete address', 'info');
+      }
+    } catch (error) {
+      console.error('Error deleting address:', error);
+      showToast('Failed to delete address', 'info');
+    }
   };
 
   const showModal = (address) => {
@@ -191,6 +190,108 @@ const AddressPage = ({ navigation }) => {
     });
   };
 
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Location Permission',
+            message: 'Keeva App needs access to your location to provide accurate delivery.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const getCurrentLocation = async () => {
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) {
+      showToast('Location permission is required', 'info');
+      return;
+    }
+
+    setLocationLoading(true);
+    
+    Geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log('Coordinates obtained:', latitude, longitude);
+        
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          const response = await fetch(`https://api.keeva.in/user/addresses/geocode?latitude=${latitude}&longitude=${longitude}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          const data = await response.json();
+          
+          if (data.ok && data.address) {
+            const { address } = data;
+            setFormData({
+              label: '',
+              houseNo: address.houseNo || '',
+              street: address.street || '',
+              landmark: address.landmark || '',
+              city: address.city || '',
+              state: address.state || '',
+              pincode: address.pincode || '',
+              latitude: latitude,
+              longitude: longitude,
+              isDefault: false
+            });
+            
+            setIsEditing(false);
+            setEditingId(null);
+            setFormModalVisible(true);
+            Animated.timing(formSlideAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }).start();
+          } else {
+            setFormData(prev => ({ ...prev, latitude, longitude }));
+            setIsEditing(false);
+            setEditingId(null);
+            setFormModalVisible(true);
+            Animated.timing(formSlideAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+            showToast('Captured location, but could not fetch address details.', 'info');
+          }
+        } catch (error) {
+          console.error('Geocode API Error:', error);
+          setFormData(prev => ({ ...prev, latitude, longitude }));
+          setIsEditing(false);
+          setEditingId(null);
+          setFormModalVisible(true);
+          Animated.timing(formSlideAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+          showToast('Geocode API Error', 'info');
+        } finally {
+          setLocationLoading(false);
+        }
+      },
+      (error) => {
+        setLocationLoading(false);
+        console.error('Location Error:', error);
+        let errorMsg = 'Failed to get location. Please ensure location services are enabled.';
+        if (error.code === 1) errorMsg = 'Location permission denied.';
+        else if (error.code === 2) errorMsg = 'Location provider unavailable.';
+        else if (error.code === 3) errorMsg = 'Location request timed out.';
+        showToast(errorMsg, 'info');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
+  };
+
   const showFormModal = (address = null) => {
     if (address) {
       setIsEditing(true);
@@ -203,6 +304,8 @@ const AddressPage = ({ navigation }) => {
         city: address.city || '',
         state: address.state || '',
         pincode: address.pincode || '',
+        latitude: address.latitude || null,
+        longitude: address.longitude || null,
         isDefault: address.isDefault || false,
       });
       // If we are editing from the options modal, hide it first
@@ -218,6 +321,8 @@ const AddressPage = ({ navigation }) => {
         city: '',
         state: '',
         pincode: '',
+        latitude: null,
+        longitude: null,
         isDefault: false
       });
     }
@@ -242,24 +347,10 @@ const AddressPage = ({ navigation }) => {
     });
   };
 
-  const showToast = (message) => {
+  const showToast = (message, type = 'success') => {
     setToastMessage(message);
+    setToastType(type);
     setToastVisible(true);
-    Animated.timing(toastAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setTimeout(() => {
-        Animated.timing(toastAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }).start(() => {
-          setToastVisible(false);
-        });
-      }, 500);
-    });
   };
 
   const renderAddressCard = (address) => (
@@ -318,6 +409,22 @@ const AddressPage = ({ navigation }) => {
           <Icon name="add" size={24} color="#00A86B" />
           <Text style={styles.addAddressText}>Add Address</Text>
           <Icon name="chevron-right" size={24} color="#00A86B" style={styles.chevronRight} />
+        </TouchableOpacity>
+
+        {/* Use My Current Location Button */}
+        <TouchableOpacity 
+          style={styles.currentLocationBtn} 
+          onPress={getCurrentLocation}
+          disabled={locationLoading}
+        >
+          {locationLoading ? (
+            <ActivityIndicator size="small" color="#00A86B" />
+          ) : (
+            <Icon name="my-location" size={24} color="#00A86B" />
+          )}
+          <Text style={styles.currentLocationBtnText}>
+            {locationLoading ? 'Fetching Location...' : 'Use my current location'}
+          </Text>
         </TouchableOpacity>
 
         {/* Saved Addresses Section */}
@@ -541,28 +648,47 @@ const AddressPage = ({ navigation }) => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Toast Notification */}
-      {toastVisible && (
-        <Animated.View
-          style={[
-            styles.toastContainer,
-            {
-              opacity: toastAnim,
-              transform: [{
-                translateY: toastAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [50, 0],
-                }),
-              }],
-            }
-          ]}
-        >
-          <View style={styles.toastContent}>
-            <Icon name="check-circle" size={24} color="#fff" />
-            <Text style={styles.toastText}>{toastMessage}</Text>
+      {/* Custom Delete Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={deleteModalVisible}
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <View style={styles.confirmIconContainer}>
+              <Icon name="delete-sweep" size={40} color="#FF4D4D" />
+            </View>
+            <Text style={styles.confirmTitle}>Delete Address?</Text>
+            <Text style={styles.confirmMessage}>Are you sure you want to delete this address? This action cannot be undone.</Text>
+            
+            <View style={styles.confirmButtonContainer}>
+              <TouchableOpacity 
+                style={[styles.confirmButton, styles.cancelBtn]} 
+                onPress={() => setDeleteModalVisible(false)}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.confirmButton, styles.deleteBtn]} 
+                onPress={confirmDelete}
+              >
+                <Text style={styles.deleteBtnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Animated.View>
-      )}
+        </View>
+      </Modal>
+
+      {/* Custom Toast Notification */}
+      <CustomToast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setToastVisible(false)}
+      />
     </View>
   );
 };
@@ -620,6 +746,27 @@ const styles = StyleSheet.create({
   },
   chevronRight: {
     marginLeft: 'auto',
+  },
+  currentLocationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: width * 0.04,
+    marginTop: height * 0.015,
+    paddingVertical: height * 0.02,
+    paddingHorizontal: width * 0.04,
+    borderRadius: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  currentLocationBtnText: {
+    fontSize: width * 0.045,
+    fontWeight: '600',
+    color: '#00A86B',
+    marginLeft: width * 0.03,
   },
   blinkitButton: {
     flexDirection: 'row',
@@ -855,39 +1002,82 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   saveButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  toastContainer: {
-    position: 'absolute',
-    bottom: 30,
-    left: width * 0.05,
-    right: width * 0.05,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  toastContent: {
-    backgroundColor: '#00A86B',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    flexDirection: 'row',
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
-  toastText: {
-    color: '#fff',
+  confirmModalContent: {
+    width: width * 0.85,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  confirmIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFF0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  confirmTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  confirmMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  confirmButtonContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#F5F5F5',
+    marginRight: 12,
+  },
+  deleteBtn: {
+    backgroundColor: '#FF4D4D',
+  },
+  cancelBtnText: {
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 12,
-    flex: 1,
+    color: '#333',
+  },
+  deleteBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

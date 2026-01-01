@@ -33,8 +33,6 @@ const FreshFruit = () => {
   const [products, setProducts] = useState([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState(null);
 
-  const vegetablePlaceholder = require('../images/vegetable.png');
-
   // 🔹 API CALL
   useEffect(() => {
     let mounted = true;
@@ -80,6 +78,8 @@ const FreshFruit = () => {
       price: product.price.selling_price,
       originalPrice: product.price.mrp,
       image: { uri: product.images?.[0]?.url },
+      category: product.category,
+      sub_category: product.sub_category,
       quantity: 1,
     }));
   };
@@ -90,6 +90,11 @@ const FreshFruit = () => {
 
   const handleDecreaseQty = (productId) => {
     dispatch(decrementQuantity(productId));
+  };
+
+  const getSubCategoryImage = (subCategory) => {
+    const product = products.find(p => p.sub_category === subCategory);
+    return product?.images?.[0]?.url;
   };
 
   return (
@@ -104,7 +109,7 @@ const FreshFruit = () => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Fresh Fruits</Text>
         </View>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('SearchScreen')}>
           <Icon name="search" size={24} color="#000" />
         </TouchableOpacity>
       </View>
@@ -130,7 +135,14 @@ const FreshFruit = () => {
                 }}
               >
                 <View style={styles.categoryImagePlaceholder}>
-                  <Image source={vegetablePlaceholder} style={styles.categoryIcon} />
+                  {getSubCategoryImage(sub) ? (
+                    <Image 
+                      source={{ uri: getSubCategoryImage(sub) }} 
+                      style={styles.categoryIcon} 
+                    />
+                  ) : (
+                    <Text style={{ fontSize: 12, color: '#999' }}>No Image</Text>
+                  )}
                 </View>
                 <Text style={styles.categoryName} numberOfLines={2}>
                   {sub}

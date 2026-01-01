@@ -41,7 +41,7 @@ export default function CartButton() {
 const styles = StyleSheet.create({
   cartButton: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 34,
     right: 3,
     backgroundColor: '#FF0066',
     borderRadius: 30,

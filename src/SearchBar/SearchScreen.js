@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import TrendingGrocery from "../helperComponent/TrendingGrocery";
+import SearchCategory from "../helperComponent/SearchCatgegory"
 
 const API_BASE_URL = "https://api.keeva.in/api/search";
 
@@ -171,7 +171,7 @@ export default function SearchScreen({ navigation }) {
 
   const renderTrendingHeader = () => {
     if (query.length === 0) {
-      return <TrendingGrocery />;
+      return <SearchCategory />;
     }
     return null;
   };

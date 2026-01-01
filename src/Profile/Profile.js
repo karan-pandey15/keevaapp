@@ -123,13 +123,7 @@ const Profile = ({ navigation }) => {
             <Text style={styles.actionText}>Help &{'\n'}Support</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('KeevaCash')}
-          >
-            <MaterialCommunityIcons name="alpha-z-box-outline" size={28} color="#000" />
-            <Text style={styles.actionText}>Keeva{'\n'}Cash</Text>
-          </TouchableOpacity>
+         
         </View>
 
         {/* Your Information */}
@@ -144,7 +138,7 @@ const Profile = ({ navigation }) => {
               onPress={() => navigation.navigate('KeevaCart')}
             >
               <View style={styles.menuLeft}>
-                <MaterialCommunityIcons name="card-outline" size={24} color="#000" />
+                <MaterialCommunityIcons name="cart-outline" size={24} color="#000" />
                 <Text style={styles.menuText}>Your Cart</Text>
               </View>
               <Icon name="chevron-right" size={24} color="#666" />
@@ -198,11 +192,11 @@ const Profile = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigation.navigate('PaymentManagement')}
+              onPress={() => navigation.navigate('')}
             >
               <View style={styles.menuLeft}>
-                <MaterialCommunityIcons name="credit-card-outline" size={24} color="#000" />
-                <Text style={styles.menuText}>Payment Management</Text>
+                <MaterialCommunityIcons name="card-outline" size={24} color="#000" />
+                <Text style={styles.menuText}>Keeva MemberShip</Text>
               </View>
               <Icon name="chevron-right" size={24} color="#666" />
             </TouchableOpacity>

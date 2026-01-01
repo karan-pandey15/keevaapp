@@ -17,6 +17,8 @@ import HomePage from "./src/screens/HomePage";
 import LocationHeader from "./src/helperComponent/LocationHeader"
 import SearchScreen from "./src/SearchBar/SearchScreen"
 import AllCategoryPage from "./src/CaategoryScreen/AllCategoryPage"
+import BabyProducts from "./src/CaategoryScreen/BabyProducts";
+import CoshmeticPaeg from "./src/CaategoryScreen/CoshmeticPaeg";
 import GroceryScreen from "./src/CaategoryScreen/GroceryScreen"
 import MilkBread from "./src/CaategoryScreen/MilkBread"
 import FreshVeg from "./src/CaategoryScreen/FreshVeg"
@@ -29,6 +31,7 @@ import ProductDetailPage from "./src/screens/ProductDetailPage";
 // Profile Screen Calling 
 import ProfilePage from "./src/profilepages/Profilepage"
 import YourOrders from "./src/profilepages/YourOrders"
+import OrderDetails from "./src/profilepages/OrderDetails"
 import AddressPage from "./src/profilepages/AddressPage"
 import HelpSupport from "./src/profilepages/HelpSupport"
 import Rewards from "./src/profilepages/Rewards"
@@ -105,6 +108,19 @@ export default function App() {
             options={{ headerShown: false }}
           />
 
+   <Stack.Screen
+            name="BabyProducts"
+            component={BabyProducts}
+            options={{ headerShown: false }}
+          />
+ 
+   <Stack.Screen
+            name="CoshmeticPaeg"
+            component={CoshmeticPaeg}
+            options={{ headerShown: false }}
+          />
+
+  
 
               <Stack.Screen
             name="FreshFruit"
@@ -166,6 +182,11 @@ export default function App() {
              <Stack.Screen
             name="YourOrders"
             component={YourOrders}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="OrderDetails"
+            component={OrderDetails}
             options={{ headerShown: false }}
           />
     <Stack.Screen

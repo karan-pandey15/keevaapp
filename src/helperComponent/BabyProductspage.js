@@ -19,10 +19,10 @@ import {
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = (width - 48) / 3;
-const API_URL = "https://api.keeva.in/products";
+const API_URL = 'https://api.keeva.in/products/category/BabyProducts';
 const FALLBACK_IMAGE = require("../images/grocery.png");
 
-const TrendingGrocery = forwardRef((props, ref) => {
+const BabyProductspage = forwardRef((props, ref) => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const cartItems = useSelector((state) => state.cart.items);
@@ -89,7 +89,7 @@ const TrendingGrocery = forwardRef((props, ref) => {
   };
 
   const handleSeeAll = () => {
-    navigation.navigate("AllCategoryPage");
+    navigation.navigate("BabyProducts");
   };
 
   const renderProduct = ({ item }) => {
@@ -181,8 +181,8 @@ const TrendingGrocery = forwardRef((props, ref) => {
     <View style={styles.wrapper}>
       <View style={styles.headerContainer}>
         <Text style={styles.headerText}>
-          Trending in{" "}
-          <Text style={styles.headerHighlight}>Belha, Pratapgarh</Text>
+          Baby{" "}
+          <Text style={styles.headerHighlight}>Products</Text>
         </Text>
       </View>
 
@@ -212,7 +212,7 @@ const TrendingGrocery = forwardRef((props, ref) => {
   );
 });
 
-TrendingGrocery.displayName = "TrendingGrocery";
+BabyProductspage.displayName = "BabyProductspage";
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -411,4 +411,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TrendingGrocery;
+export default BabyProductspage;

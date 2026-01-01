@@ -15,11 +15,11 @@ const CategorySlider = () => {
   const [activeCategory, setActiveCategory] = useState(1);
 
   const categories = [
-    { id: 1, name: 'All', image: require('../images/All.png'), screen: 'AllCategoryPage' },
-    { id: 2, name: 'Fresh Veg..', image: require('../images/vegetable.png'), screen: 'FreshVeg' },
-    { id: 3, name: 'Fresh Fruit', image: require('../images/fruit.png'), screen: 'FreshFruit' },
-    { id: 4, name: 'Milk & Bread', image: require('../images/milkbread.png'), screen: 'MilkBread' },
-    { id: 5, name: 'Groceries', image: require('../images/grocery.png'), screen: 'GroceryScreen' },
+    { id: 1, name: 'All Category', image: require('../images/chips.png'), screen: 'AllCategoryPage' },
+    { id: 2, name: 'Fresh Veg..', image: require('../images/vegetables.png'), screen: 'FreshVeg' },
+    { id: 3, name: 'Fresh Fruit', image: require('../images/fruits.png'), screen: 'FreshFruit' },
+    { id: 4, name: 'Milk & Bread', image: require('../images/milkbreads.png'), screen: 'MilkBread' },
+    { id: 5, name: 'Groceries', image: require('../images/grocerys.png'), screen: 'GroceryScreen' },
   ];
 
   const handleCategoryPress = (screen, categoryId) => {

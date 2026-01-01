@@ -16,13 +16,12 @@ import {
   incrementQuantity,
   decrementQuantity,
 } from "../redux/cartSlice";
-
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = (width - 48) / 3;
-const API_URL = "https://api.keeva.in/products";
+const API_URL = "https://api.keeva.in/products/category/Fruits";
 const FALLBACK_IMAGE = require("../images/grocery.png");
 
-const TrendingGrocery = forwardRef((props, ref) => {
+const FreshVegetable = forwardRef((props, ref) => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const cartItems = useSelector((state) => state.cart.items);
@@ -89,7 +88,7 @@ const TrendingGrocery = forwardRef((props, ref) => {
   };
 
   const handleSeeAll = () => {
-    navigation.navigate("AllCategoryPage");
+    navigation.navigate("FreshFruit");
   };
 
   const renderProduct = ({ item }) => {
@@ -181,8 +180,8 @@ const TrendingGrocery = forwardRef((props, ref) => {
     <View style={styles.wrapper}>
       <View style={styles.headerContainer}>
         <Text style={styles.headerText}>
-          Trending in{" "}
-          <Text style={styles.headerHighlight}>Belha, Pratapgarh</Text>
+          Fresh
+              <Text style={styles.headerHighlight}> Fruits</Text>
         </Text>
       </View>
 
@@ -212,7 +211,7 @@ const TrendingGrocery = forwardRef((props, ref) => {
   );
 });
 
-TrendingGrocery.displayName = "TrendingGrocery";
+FreshVegetable.displayName = "FreshVegetable";
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -411,4 +410,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TrendingGrocery;
+export default FreshVegetable;

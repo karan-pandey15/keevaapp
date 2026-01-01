@@ -20,9 +20,9 @@ const SIDEBAR_WIDTH = 100;
 const PRODUCTS_GRID_PADDING = 8;
 const CARD_WIDTH_PERCENT = '49%';
 
-const API_URL = 'https://api.keeva.in/products';
+const API_URL = 'https://api.keeva.in/products/category/BabyProducts';
 
-const AllCategoryPage = () => {
+const BabyProducts = () => {
   // ✅ ALL HOOKS AT TOP (VERY IMPORTANT)
   const navigation = useNavigation();
   const dispatch = useDispatch();
@@ -107,7 +107,7 @@ const AllCategoryPage = () => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Icon name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>All</Text>
+          <Text style={styles.headerTitle}>Baby Products</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('SearchScreen')}>
           <Icon name="search" size={24} color="#000" />
@@ -530,4 +530,4 @@ const styles = StyleSheet.create({
 });
 
 
-export default AllCategoryPage;
+export default BabyProducts;

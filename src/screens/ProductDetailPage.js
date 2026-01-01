@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,129 @@ import {
   StatusBar,
   ScrollView,
   Alert,
+  FlatList,
+  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { addItem, incrementQuantity, decrementQuantity } from '../redux/cartSlice';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const ProductDetailPage = ({ route }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const cartItems = useSelector((state) => state.cart.items);
+  const [product, setProduct] = useState(route.params?.product || {});
+  const [loading, setLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [suggestions, setSuggestions] = useState([]);
 
-  if (!route?.params?.product) {
+  const handleScroll = (event) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = Math.round(event.nativeEvent.contentOffset.x / slideSize);
+    setActiveIndex(index);
+  };
+
+  useEffect(() => {
+    if (route.params?.product && !route.params.product.description) {
+      fetchProductDetails(route.params.product._id || route.params.product.id);
+    }
+    fetchSuggestions();
+  }, [route.params?.product, cartItems]);
+
+  const fetchSuggestions = async () => {
+    try {
+      const response = await fetch('https://api.keeva.in/products');
+      const data = await response.json();
+      if (data.ok && data.products) {
+        const currentProductId = product._id || product.id || route.params?.product?._id || route.params?.product?.id;
+        const cartItemIds = new Set(cartItems.map(item => item.id));
+        
+        // Exclude current product and products already in cart
+        const excludeIds = new Set([...cartItemIds, currentProductId]);
+        
+        let filteredSuggestions = [];
+
+        // Logic adapted from KeevaCart.js
+        if (cartItems.length > 0) {
+          const cartSubCategories = new Set(cartItems.map(item => item.sub_category).filter(Boolean));
+          const cartCategories = new Set(cartItems.map(item => item.category).filter(Boolean));
+          
+          // Match sub_category
+          const subCategoryMatches = data.products.filter(p => 
+            p.sub_category && cartSubCategories.has(p.sub_category) && !excludeIds.has(p._id)
+          );
+
+          // Group by category for fallback
+          const categoryMap = {};
+          data.products.forEach(p => {
+            if (!excludeIds.has(p._id) && p.category && cartCategories.has(p.category)) {
+              if (!categoryMap[p.category]) categoryMap[p.category] = [];
+              categoryMap[p.category].push(p);
+            }
+          });
+
+          filteredSuggestions = [...subCategoryMatches];
+
+          cartCategories.forEach(cat => {
+            const alreadyAddedFromThisCat = filteredSuggestions.some(p => p.category === cat);
+            if (!alreadyAddedFromThisCat && categoryMap[cat]) {
+              filteredSuggestions.push(...categoryMap[cat].slice(0, 3));
+            }
+          });
+        }
+
+        // Add similar products based on current product if suggestions are low
+        if (filteredSuggestions.length < 5 && product.category) {
+          const similarProducts = data.products.filter(p => 
+            p.category === product.category && 
+            !excludeIds.has(p._id) && 
+            !filteredSuggestions.some(fs => fs._id === p._id)
+          );
+          filteredSuggestions = [...filteredSuggestions, ...similarProducts];
+        }
+
+        setSuggestions(filteredSuggestions.slice(0, 10));
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    }
+  };
+
+  const fetchProductDetails = async (id) => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.keeva.in/products');
+      const data = await response.json();
+      if (data.ok && data.products) {
+        const found = data.products.find(p => p._id === id || p.id === id);
+        if (found) {
+          setProduct(found);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorView}>
+          <ActivityIndicator size="large" color="#d91c5c" />
+          <Text style={[styles.errorText, { color: '#666' }]}>Loading product details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!product || Object.keys(product).length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorView}>
@@ -37,19 +148,17 @@ const ProductDetailPage = ({ route }) => {
     );
   }
 
-  const product = route.params.product || {};
-
   const safeProduct = {
-    _id: product._id || '',
+    _id: product._id || product.id || '',
     name: product.name || 'Unknown Product',
     category: product.category || 'Uncategorized',
     description: product.description || 'No description available',
     brand: product.brand || '',
     sub_category: product.sub_category || '',
-    images: product.images || [{ url: '' }],
+    images: product.images || (product.image ? [product.image] : [{ url: '' }]),
     price: {
-      selling_price: product.price?.selling_price || 0,
-      mrp: product.price?.mrp || 0,
+      selling_price: product.price?.selling_price || product.price || 0,
+      mrp: product.price?.mrp || product.originalPrice || product.price || 0,
       discount_percent: product.price?.discount_percent || 0,
     },
     quantity_info: {
@@ -74,6 +183,34 @@ const ProductDetailPage = ({ route }) => {
   const currentQuantity = getCartQuantity();
   const totalCartQuantity = getTotalCartQuantity();
 
+  const getSuggestionItemQuantity = (id) => {
+    const item = cartItems.find((i) => i.id === id);
+    return item ? item.quantity : 0;
+  };
+
+  const handleAddSuggestion = (item) => {
+    dispatch(
+      addItem({
+        id: item._id,
+        name: item.name,
+        price: item.price.selling_price,
+        originalPrice: item.price.mrp,
+        image: { uri: item.images?.[0]?.url || '' },
+        category: item.category,
+        sub_category: item.sub_category,
+        quantity: 1,
+      })
+    );
+  };
+
+  const handleIncreaseSuggestionQty = (id) => {
+    dispatch(incrementQuantity(id));
+  };
+
+  const handleDecreaseSuggestionQty = (id) => {
+    dispatch(decrementQuantity(id));
+  };
+
   const handleAddToCart = () => {
     if (!safeProduct._id) {
       Alert.alert('Error', 'Product ID is missing');
@@ -88,6 +225,8 @@ const ProductDetailPage = ({ route }) => {
           price: safeProduct.price.selling_price,
           originalPrice: safeProduct.price.mrp,
           image: { uri: safeProduct.images?.[0]?.url || '' },
+          category: safeProduct.category,
+          sub_category: safeProduct.sub_category,
           quantity: 1,
         })
       );
@@ -120,22 +259,57 @@ const ProductDetailPage = ({ route }) => {
           <Icon name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Product Details</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity 
+          style={styles.headerRightButton} 
+          onPress={() => navigation.navigate('SearchScreen')}
+        >
+          <Icon name="search" size={24} color="#000" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollContentContainer}
       >
-        {/* PRODUCT IMAGE */}
+        {/* PRODUCT IMAGE CAROUSEL */}
         <View style={styles.imageContainer}>
-          {imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.productImage}
-              resizeMode="contain"
-              onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
-            />
+          {safeProduct.images && safeProduct.images.length > 0 ? (
+            <>
+              <FlatList
+                data={safeProduct.images}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                  <View style={{ width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center' }}>
+                    <Image
+                      source={{ uri: item.url }}
+                      style={styles.productImage}
+                      resizeMode="contain"
+                      onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
+                    />
+                  </View>
+                )}
+              />
+              
+              {/* Pagination Dots */}
+              {safeProduct.images.length > 1 && (
+                <View style={styles.paginationContainer}>
+                  {safeProduct.images.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.paginationDot,
+                        activeIndex === index ? styles.paginationDotActive : styles.paginationDotInactive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
           ) : (
             <View style={[styles.productImage, styles.placeholderImage]}>
               <Icon name="image" size={80} color="#CCC" />
@@ -216,6 +390,88 @@ const ProductDetailPage = ({ route }) => {
             <View style={styles.highlightSection}>
               <Text style={styles.highlightTitle}>Sub Category</Text>
               <Text style={styles.highlightValue}>{safeProduct.sub_category}</Text>
+            </View>
+          )}
+
+          {/* SUGGESTIONS SECTION */}
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <View style={styles.suggestionsHeader}>
+                <Text style={styles.suggestionsTitle}>Suggestion items</Text>
+                <Icon name="sparkles" size={18} color="#FFD700" style={{ marginLeft: 6 }} />
+              </View>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestionsList}
+              >
+                {suggestions.map((item) => {
+                  const suggestionQty = getSuggestionItemQuantity(item._id);
+                  return (
+                    <TouchableOpacity 
+                      key={item._id} 
+                      style={styles.suggestionCard}
+                      onPress={() => navigation.push('ProductDetailPage', { product: item })}
+                      activeOpacity={0.9}
+                    >
+                      <View style={styles.suggestionImageContainer}>
+                        <Image 
+                          source={{ uri: item.images?.[0]?.url }} 
+                          style={styles.suggestionImage}
+                          resizeMode="contain"
+                        />
+                        {item.price.mrp > item.price.selling_price && (
+                          <View style={styles.miniDiscountBadge}>
+                            <Text style={styles.miniDiscountText}>
+                              {Math.round(((item.price.mrp - item.price.selling_price) / item.price.mrp) * 100)}% OFF
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.suggestionInfo}>
+                        <Text style={styles.suggestionName} numberOfLines={2}>{item.name}</Text>
+                        <Text style={styles.suggestionQty}>{item.quantity_info?.size} {item.quantity_info?.unit}</Text>
+                        <View style={styles.suggestionPriceRow}>
+                          <View>
+                            <Text style={styles.suggestionPrice}>₹{item.price.selling_price}</Text>
+                            {item.price.mrp > item.price.selling_price && (
+                              <Text style={styles.suggestionMRP}>₹{item.price.mrp}</Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                      
+                      {/* Suggestion Add/Quantity Control */}
+                      <View style={styles.suggestionActionContainer}>
+                        {suggestionQty > 0 ? (
+                          <View style={styles.suggestionQtyControl}>
+                            <TouchableOpacity 
+                              style={styles.suggestionQtyBtn}
+                              onPress={() => handleDecreaseSuggestionQty(item._id)}
+                            >
+                              <Text style={styles.suggestionQtyBtnText}>−</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.suggestionQtyText}>{suggestionQty}</Text>
+                            <TouchableOpacity 
+                              style={styles.suggestionQtyBtn}
+                              onPress={() => handleIncreaseSuggestionQty(item._id)}
+                            >
+                              <Text style={styles.suggestionQtyBtnText}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <TouchableOpacity 
+                            style={styles.suggestionAddBtn}
+                            onPress={() => handleAddSuggestion(item)}
+                          >
+                            <Text style={styles.suggestionAddBtnText}>Add</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -317,34 +573,51 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  headerSpacer: {
-    width: 24,
+  headerRightButton: {
+    padding: 8,
   },
   scrollContent: {
     flex: 1,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: '#fff',
   },
   scrollContentContainer: {
     paddingBottom: 20,
   },
   imageContainer: {
     backgroundColor: '#fff',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    minHeight: 300,
+    minHeight: 320,
   },
   productImage: {
-    width: '100%',
-    height: 280,
-    resizeMode: 'contain',
+    width: SCREEN_WIDTH * 0.9,
+    height: 300,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#d91c5c',
+    width: 20,
+  },
+  paginationDotInactive: {
+    backgroundColor: '#E0E0E0',
   },
   placeholderImage: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#fff',
   },
   discountBadge: {
     position: 'absolute',
@@ -441,6 +714,135 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
   },
+  suggestionsContainer: {
+    marginTop: 20,
+    paddingTop: 15,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  suggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  suggestionsList: {
+    paddingRight: 16,
+    paddingBottom: 10,
+  },
+  suggestionCard: {
+    width: 150,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    overflow: 'hidden',
+    paddingBottom: 8,
+  },
+  suggestionImageContainer: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f9f9f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  suggestionImage: {
+    width: '80%',
+    height: '80%',
+  },
+  miniDiscountBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#d91c5c',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  miniDiscountText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  suggestionInfo: {
+    padding: 8,
+    minHeight: 100,
+  },
+  suggestionName: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '500',
+    height: 34,
+    marginBottom: 4,
+  },
+  suggestionQty: {
+    fontSize: 10,
+    color: '#666',
+    marginBottom: 4,
+  },
+  suggestionPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  suggestionPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  suggestionMRP: {
+    fontSize: 10,
+    color: '#999',
+    textDecorationLine: 'line-through',
+  },
+  suggestionActionContainer: {
+    paddingHorizontal: 8,
+    marginTop: 4,
+  },
+  suggestionAddBtn: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d91c5c',
+    borderRadius: 6,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionAddBtnText: {
+    color: '#d91c5c',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  suggestionQtyControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#d91c5c',
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  suggestionQtyBtn: {
+    padding: 4,
+  },
+  suggestionQtyBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  suggestionQtyText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   highlightSection: {
     marginTop: 12,
     paddingTop: 12,
@@ -462,6 +864,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 10,
+    paddingBottom: 14,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',

@@ -7,12 +7,12 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
-  Alert,
   Platform,
   ActivityIndicator
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getProfile, updateProfile } from '../api';
+import CustomToast from '../helperComponent/CustomToast';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,13 +20,20 @@ const ProfilePage = ({navigation}) => {
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [anniversary, setAnniversary] = useState('');
-  const [gender, setGender] = useState('Male');
-  const [showGenderDropdown, setShowGenderDropdown] = useState(false);
+  const [role, setRole] = useState('');
+  const [createdAt, setCreatedAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [editingMobile, setEditingMobile] = useState(false);
+
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+
+  const showToast = (message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -38,126 +45,87 @@ const ProfilePage = ({navigation}) => {
       const data = await getProfile();
       if (data.ok && data.user) {
         setName(data.user.name || '');
-        setMobile(data.user.phone || '');
+        // Strip 91 from phone for display
+        const phone = data.user.phone || '';
+        setMobile(phone.startsWith('91') ? phone.slice(2) : phone);
         setEmail(data.user.email || '');
-        // Note: dateOfBirth, anniversary, gender are not in the provided schema
-        // so they are not populated from backend
-      } else {
-        // If user not found or other error, maybe redirect to login or show error
-        // For now just alert if it's a critical error, or fail silently
-        // Alert.alert('Error', data.message || 'Failed to fetch profile');
+        setRole(data.user.role || 'customer');
+        setCreatedAt(data.user.createdAt || '');
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Something went wrong while fetching profile');
+      showToast('Some Error Occurs Try Later', 'info');
     } finally {
       setLoading(false);
     }
   };
 
-  // Validation functions
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const validateMobile = (mobile) => {
-    return (mobile.length === 10 || mobile.length === 12) && /^\d+$/.test(mobile);
-  };
-
   const isFormValid = () => {
     if (!name.trim()) return false;
-    // Mobile is usually read-only or validated if editable
-    // if (!validateMobile(mobile)) return false; 
     if (email && !validateEmail(email)) return false;
-    // dateOfBirth is optional in schema
     return true;
   };
 
   const handleUpdateProfile = async () => {
     if (!isFormValid()) {
-      Alert.alert('Error', 'Please fill all required fields correctly');
+      showToast('Please fill all required fields correctly', 'info');
       return;
     }
     
-    if (email && !validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-
     try {
       setUpdating(true);
+      // Auto-add 91 to phone for backend
+      const phoneToSend = mobile.length === 10 ? '91' + mobile : mobile;
+      
       const userData = {
         name,
         email,
+        phone: phoneToSend,
       };
       
       const data = await updateProfile(userData);
       
       if (data.ok) {
-        Alert.alert('Success', 'Profile updated successfully!');
+        showToast('Profile Update SuccessFully', 'success');
+        if (data.user) {
+          setName(data.user.name || '');
+          const phone = data.user.phone || '';
+          setMobile(phone.startsWith('91') ? phone.slice(2) : phone);
+          setEmail(data.user.email || '');
+          setRole(data.user.role || 'customer');
+          setCreatedAt(data.user.createdAt || '');
+        }
       } else {
-        Alert.alert('Error', data.message || 'Failed to update profile');
+        showToast(data.message || 'Some Error Occurs Try Later', 'info');
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Something went wrong while updating profile');
+      showToast('Some Error Occurs Try Later', 'info');
     } finally {
       setUpdating(false);
     }
-  };
-
-  const formatDate = (text) => {
-    // Remove all non-numeric characters
-    const cleaned = text.replace(/\D/g, '');
-    
-    // Format as DD/MM/YYYY
-    let formatted = cleaned;
-    if (cleaned.length >= 2) {
-      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-    }
-    if (cleaned.length >= 4) {
-      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4) + '/' + cleaned.slice(4, 8);
-    }
-    
-    return formatted;
   };
 
   const handleMobileChange = (text) => {
     const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length <= 12) {
+    if (cleaned.length <= 10) {
       setMobile(cleaned);
     }
   };
 
-  const handleMobileUpdate = async () => {
-    if (!validateMobile(mobile)) {
-      Alert.alert('Error', 'Please enter a valid 10 or 12 digit mobile number');
-      return;
-    }
-
-    try {
-      setUpdating(true);
-      const userData = {
-        name,
-        email,
-        phone: mobile,
-      };
-      
-      const data = await updateProfile(userData);
-      
-      if (data.ok) {
-        Alert.alert('Success', 'Mobile number updated successfully!');
-        setEditingMobile(false);
-      } else {
-        Alert.alert('Error', data.message || 'Failed to update mobile number');
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Something went wrong while updating mobile number');
-    } finally {
-      setUpdating(false);
-    }
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
   };
 
   if (loading) {
@@ -170,6 +138,13 @@ const ProfilePage = ({navigation}) => {
 
   return (
     <View style={styles.container}>
+      <CustomToast 
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setToastVisible(false)}
+      />
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton}
@@ -185,14 +160,14 @@ const ProfilePage = ({navigation}) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Picture */}
+        {/* Profile Picture & Role */}
         <View style={styles.profileSection}>
           <View style={styles.profileCircle}>
             <Text style={styles.profileInitial}>{name ? name.charAt(0).toUpperCase() : 'U'}</Text>
           </View>
-          <TouchableOpacity style={styles.editIcon}>
-            <Icon name="edit" size={18} color="#666" />
-          </TouchableOpacity>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{role.toUpperCase()}</Text>
+          </View>
         </View>
 
         {/* Name Field */}
@@ -214,47 +189,30 @@ const ProfilePage = ({navigation}) => {
           </View>
         </View>
 
-        {/* Mobile Field */}
+        {/* Mobile Field (Read-only as per typical profile behavior, but editable if requested) */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Mobile</Text>
-          <View style={styles.inputWrapperWithButton}>
+          <View style={styles.inputWrapper}>
+            <Text style={styles.countryCode}>+91</Text>
             <TextInput
-              style={styles.inputWithButton}
+              style={[styles.input, { flex: 1 }]}
               value={mobile}
               onChangeText={handleMobileChange}
               placeholder="Enter mobile number"
               placeholderTextColor="#999"
               keyboardType="number-pad"
-              maxLength={12}
-              editable={editingMobile}
+              maxLength={10}
+              editable={false} 
             />
-            {editingMobile ? (
-              <TouchableOpacity 
-                onPress={handleMobileUpdate}
-                disabled={!validateMobile(mobile) || updating}
-                style={[styles.changeButton, (!validateMobile(mobile) || updating) && styles.changeButtonDisabled]}
-              >
-                <Text style={[styles.changeButtonText, (!validateMobile(mobile) || updating) && styles.changeButtonTextDisabled]}>
-                  {updating ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                onPress={() => setEditingMobile(true)}
-                style={styles.changeButton}
-              >
-                <Text style={styles.changeButtonText}>Change</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
 
         {/* Email Field */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Email</Text>
-          <View style={styles.inputWrapperWithButton}>
+          <View style={styles.inputWrapper}>
             <TextInput
-              style={styles.inputWithButton}
+              style={styles.input}
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email"
@@ -262,89 +220,16 @@ const ProfilePage = ({navigation}) => {
               keyboardType="email-address"
               autoCapitalize="none"
             />
-             {/* Removed CHANGE button */}
           </View>
         </View>
 
-        {/* Date of Birth Field */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Date of birth</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              value={dateOfBirth}
-              onChangeText={(text) => setDateOfBirth(formatDate(text))}
-              placeholder="DD/MM/YYYY"
-              placeholderTextColor="#999"
-              keyboardType="number-pad"
-              maxLength={10}
-            />
-            {dateOfBirth !== '' && (
-              <TouchableOpacity onPress={() => setDateOfBirth('')}>
-                <Icon name="cancel" size={20} color="#999" />
-              </TouchableOpacity>
-            )}
+        {/* Account Created Date */}
+        <View style={styles.infoContainer}>
+          <Text style={styles.label}>Account Created</Text>
+          <View style={styles.infoWrapper}>
+            <Icon name="calendar-today" size={20} color="#666" style={{ marginRight: 10 }} />
+            <Text style={styles.infoText}>{formatDate(createdAt)}</Text>
           </View>
-        </View>
-
-        {/* Anniversary Field */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Anniversary</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              value={anniversary}
-              onChangeText={(text) => setAnniversary(formatDate(text))}
-              placeholder="DD/MM/YYYY"
-              placeholderTextColor="#999"
-              keyboardType="number-pad"
-              maxLength={10}
-            />
-          </View>
-        </View>
-
-        {/* Gender Field */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Gender</Text>
-          <TouchableOpacity 
-            style={styles.genderSelector}
-            onPress={() => setShowGenderDropdown(!showGenderDropdown)}
-          >
-            <Text style={styles.genderText}>{gender}</Text>
-            <Icon name="arrow-drop-down" size={24} color="#666" />
-          </TouchableOpacity>
-          
-          {showGenderDropdown && (
-            <View style={styles.dropdown}>
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setGender('Male');
-                  setShowGenderDropdown(false);
-                }}
-              >
-                <Text style={styles.dropdownText}>Male</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setGender('Female');
-                  setShowGenderDropdown(false);
-                }}
-              >
-                <Text style={styles.dropdownText}>Female</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setGender('Other');
-                  setShowGenderDropdown(false);
-                }}
-              >
-                <Text style={styles.dropdownText}>Other</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         {/* Update Button */}
@@ -388,7 +273,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? height * 0.06 : height * 0.02,
     paddingBottom: height * 0.02,
     backgroundColor: '#fff',
-    marginTop:20
+    marginTop: 20
   },
   backButton: {
     padding: 8,
@@ -403,50 +288,55 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: height * 0.03,
+    paddingBottom: height * 0.05,
   },
   profileSection: {
     alignItems: 'center',
-    marginTop: height * 0.03,
-    marginBottom: height * 0.04,
+    marginVertical: height * 0.03,
+    position: 'relative',
   },
   profileCircle: {
-    width: width * 0.35,
-    height: width * 0.35,
-    borderRadius: width * 0.175,
-    backgroundColor: '#FFF8E7',
-    borderWidth: 3,
-    borderColor: '#D4A574',
+    width: width * 0.25,
+    height: width * 0.25,
+    borderRadius: (width * 0.25) / 2,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#00A86B',
   },
   profileInitial: {
-    fontSize: width * 0.15,
-    fontWeight: '400',
-    color: '#D4A574',
+    fontSize: width * 0.1,
+    fontWeight: '600',
+    color: '#00A86B',
   },
-  editIcon: {
+  roleBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: width * 0.3,
-    backgroundColor: '#fff',
+    bottom: -10,
+    backgroundColor: '#00A86B',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 20,
-    padding: 8,
-    elevation: 3,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+  roleText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   inputContainer: {
     marginHorizontal: width * 0.05,
     marginBottom: height * 0.02,
   },
   label: {
-    fontSize: width * 0.035,
-    color: '#999',
+    fontSize: width * 0.038,
+    color: '#666',
     marginBottom: height * 0.01,
-    marginLeft: width * 0.02,
+    fontWeight: '500',
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -454,7 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: width * 0.04,
-    paddingVertical: height * 0.018,
+    paddingVertical: Platform.OS === 'ios' ? height * 0.018 : height * 0.005,
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
@@ -462,82 +352,45 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: width * 0.042,
     color: '#000',
-    padding: 0,
+    paddingVertical: 10,
   },
-  inputWrapperWithButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingLeft: width * 0.04,
-    paddingVertical: height * 0.018,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  inputWithButton: {
-    flex: 1,
+  countryCode: {
     fontSize: width * 0.042,
-    color: '#000',
-    padding: 0,
+    color: '#333',
+    marginRight: 10,
+    fontWeight: '500',
   },
-  changeButton: {
-    paddingHorizontal: width * 0.04,
-    paddingVertical: height * 0.012,
+  infoContainer: {
+    marginHorizontal: width * 0.05,
+    marginBottom: height * 0.02,
   },
-  changeButtonText: {
-    fontSize: width * 0.035,
-    fontWeight: '600',
-    color: '#00A86B',
-  },
-  changeButtonDisabled: {
-    opacity: 0.5,
-  },
-  changeButtonTextDisabled: {
-    color: '#999',
-  },
-  genderSelector: {
+  infoWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    backgroundColor: '#f9f9f9',
     borderRadius: 12,
     paddingHorizontal: width * 0.04,
     paddingVertical: height * 0.018,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#eee',
   },
-  genderText: {
-    fontSize: width * 0.042,
-    color: '#000',
-  },
-  dropdown: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginTop: height * 0.01,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    padding: 5,
-  },
-  dropdownItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  dropdownText: {
-    fontSize: 16,
+  infoText: {
+    fontSize: width * 0.04,
     color: '#333',
   },
   updateButton: {
     backgroundColor: '#00A86B',
     marginHorizontal: width * 0.05,
-    marginTop: height * 0.02,
+    marginTop: height * 0.04,
     paddingVertical: height * 0.02,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   updateButtonDisabled: {
     backgroundColor: '#ccc',

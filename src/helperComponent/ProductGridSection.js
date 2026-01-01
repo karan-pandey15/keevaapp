@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import {
   addItem,
   incrementQuantity,
@@ -19,10 +19,17 @@ import {
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = (width - 48) / 3;
-const API_URL = "https://api.keeva.in/products";
 const FALLBACK_IMAGE = require("../images/grocery.png");
 
-const TrendingGrocery = forwardRef((props, ref) => {
+const ProductGridSection = forwardRef((props, ref) => {
+  const {
+    apiUrl,
+    headerTitle,
+    navigationScreenName,
+    itemsToShow = 6,
+    sectionId = "",
+  } = props;
+
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const cartItems = useSelector((state) => state.cart.items);
@@ -34,11 +41,11 @@ const TrendingGrocery = forwardRef((props, ref) => {
     try {
       if (showLoading) setLoading(true);
 
-      const res = await fetch(API_URL);
+      const res = await fetch(apiUrl);
       const data = await res.json();
 
       if (res.ok && data.ok) {
-        const mapped = data.products.slice(0, 6).map((p) => ({
+        const mapped = data.products.map((p) => ({
           id: p._id,
           name: p.name,
           price: p.price?.selling_price ?? 0,
@@ -47,7 +54,7 @@ const TrendingGrocery = forwardRef((props, ref) => {
           sub_category: p.sub_category,
           discount:
             p.price?.discount_percent > 0
-              ? `${p.price.discount_percent}% OFF`
+              ? `₹${p.price?.discount_percent} OFF`
               : null,
           weight: `${p.quantity_info?.size ?? ""} ${
             p.quantity_info?.unit ?? ""
@@ -60,7 +67,8 @@ const TrendingGrocery = forwardRef((props, ref) => {
           originalProduct: p,
         }));
 
-        setProducts(mapped);
+        const limitedProducts = mapped.slice(0, itemsToShow);
+        setProducts(limitedProducts);
       }
     } catch (err) {
       console.log("Fetch error:", err);
@@ -75,13 +83,7 @@ const TrendingGrocery = forwardRef((props, ref) => {
 
   useEffect(() => {
     fetchProducts(true);
-  }, []);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchProducts(false);
-    }, [])
-  );
+  }, [apiUrl]);
 
   const getItemQuantity = (id) => {
     const item = cartItems.find((i) => i.id === id);
@@ -89,22 +91,22 @@ const TrendingGrocery = forwardRef((props, ref) => {
   };
 
   const handleSeeAll = () => {
-    navigation.navigate("AllCategoryPage");
+    navigation.navigate(navigationScreenName);
+  };
+
+  const handleProductPress = (item) => {
+    if (item.originalProduct) {
+      navigation.navigate("ProductDetailPage", { product: item.originalProduct });
+    }
   };
 
   const renderProduct = ({ item }) => {
     const quantity = getItemQuantity(item.id);
 
-    const handleProductPress = () => {
-      if (item.originalProduct) {
-        navigation.navigate("ProductDetailPage", { product: item.originalProduct });
-      }
-    };
-
     return (
       <TouchableOpacity
         style={styles.productCard}
-        onPress={handleProductPress}
+        onPress={() => handleProductPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.imageContainer}>
@@ -180,15 +182,16 @@ const TrendingGrocery = forwardRef((props, ref) => {
   return (
     <View style={styles.wrapper}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>
-          Trending in{" "}
-          <Text style={styles.headerHighlight}>Belha, Pratapgarh</Text>
-        </Text>
+        <Text style={styles.headerText}>{headerTitle}</Text>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#d91c5c" style={styles.loader} />
-      ) : (
+        <ActivityIndicator
+          size="large"
+          color="#d91c5c"
+          style={styles.loader}
+        />
+      ) : products.length > 0 ? (
         <>
           <FlatList
             data={products}
@@ -199,20 +202,26 @@ const TrendingGrocery = forwardRef((props, ref) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.gridContainer}
           />
+
           <TouchableOpacity
             style={styles.seeAllButton}
             onPress={handleSeeAll}
             activeOpacity={0.85}
           >
-            <Text style={styles.seeAllText}>See all</Text> 
+            <Text style={styles.seeAllText}>See all</Text>
+           
           </TouchableOpacity>
         </>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No products available</Text>
+        </View>
       )}
     </View>
   );
 });
 
-TrendingGrocery.displayName = "TrendingGrocery";
+ProductGridSection.displayName = "ProductGridSection";
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -233,10 +242,6 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
   },
 
-  headerHighlight: {
-    color: "#d91c5c",
-  },
-
   gridContainer: {
     paddingHorizontal: 12,
     paddingBottom: 80,
@@ -244,6 +249,18 @@ const styles = StyleSheet.create({
 
   loader: {
     marginVertical: 40,
+  },
+
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: "#999",
+    fontWeight: "500",
   },
 
   productCard: {
@@ -398,7 +415,7 @@ const styles = StyleSheet.create({
   },
 
   seeAllText: {
-    color: "#d91c5c",
+    color: "#ffffff",
     fontSize: 16,
     fontWeight: "700",
     marginRight: 8,
@@ -411,4 +428,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TrendingGrocery;
+export default ProductGridSection;
